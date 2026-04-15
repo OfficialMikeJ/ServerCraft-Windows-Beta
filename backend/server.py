@@ -521,7 +521,8 @@ GAME_PORT_RANGES = {
     "no_one_survived": {"start": 8000, "end": 8099, "query_offset": 0},
     "fivem": {"start": 30120, "end": 30219, "query_offset": 0},
     "source_engine": {"start": 27015, "end": 27114, "query_offset": 0},
-    "minecraft": {"start": 25565, "end": 25664, "query_offset": 0}
+    "minecraft": {"start": 25565, "end": 25664, "query_offset": 0},
+    "teamspeak3": {"start": 9987, "end": 10086, "query_offset": 10024}
 }
 
 GAME_DEFINITIONS = {
@@ -764,6 +765,26 @@ GAME_DEFINITIONS = {
             {"name": "survival", "color": "#ef4444"}
         ],
         "description": "The iconic block-building sandbox game"
+    },
+    "teamspeak3": {
+        "name": "TeamSpeak 3",
+        "app_id": None,
+        "server_app_id": None,
+        "requires_login": False,
+        "requires_ownership": False,
+        "default_port": 9987,
+        "port_range": GAME_PORT_RANGES["teamspeak3"],
+        "executable": "ts3server.exe",
+        "workshop_id": None,
+        "custom_install": True,
+        "tags": [
+            {"name": "voice-chat", "color": "#3b82f6"},
+            {"name": "communication", "color": "#8b5cf6"},
+            {"name": "community", "color": "#06b6d4"}
+        ],
+        "description": "TeamSpeak 3 voice communication server. Free up to 32 slots.",
+        "license_notice": "TeamSpeak 3 servers are free with up to 32 slots available. Servers that require more than 32 slots will require a license from TeamSpeak.",
+        "license_url": "https://www.teamspeak.com/en/features/licensing/"
     }
 }
 
@@ -1420,6 +1441,114 @@ async def get_template_reviews(template_id: str, token: str = None):
 
 # ==================== END MARKETPLACE VERSIONING & RATINGS ====================
 
+# ==================== MARKETPLACE EXTERNAL AUTH & VERSION CHECK ====================
+
+class ExternalAuthRequest(BaseModel):
+    username: str
+    password: str
+
+class ExternalAuthCallbackRequest(BaseModel):
+    username: str
+    external_token: str
+    user_data: dict = {}
+
+# External auth API endpoint URL - will be provided by the ServerCraft website
+# For now, this is a configurable placeholder
+EXTERNAL_AUTH_API_URL = ""  # Will be set to servercraft.dev API endpoint
+
+@api_router.post("/marketplace/external-auth/login")
+async def marketplace_external_login(request: ExternalAuthRequest):
+    """
+    Authenticate via external ServerCraft website API.
+    Users register on the main website and login here to access template uploads.
+    """
+    import aiohttp
+    
+    if not EXTERNAL_AUTH_API_URL:
+        return {
+            "success": False,
+            "error": "External authentication is not yet configured. The ServerCraft website API endpoint will be available soon.",
+            "auth_configured": False
+        }
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.post(
+                f"{EXTERNAL_AUTH_API_URL}/api/auth/login",
+                json={"username": request.username, "password": request.password},
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    if data.get("success"):
+                        # Store session locally
+                        marketplace_manager.store_external_session(
+                            request.username, data.get("token", ""), data
+                        )
+                        return {
+                            "success": True,
+                            "username": request.username,
+                            "display_name": data.get("display_name", request.username),
+                            "role": data.get("role", "creator"),
+                            "message": "Logged in via ServerCraft website"
+                        }
+                    return {"success": False, "error": data.get("error", "Login failed")}
+                elif response.status == 401:
+                    return {"success": False, "error": "Invalid credentials. Register at servercraft.dev"}
+                else:
+                    return {"success": False, "error": f"Auth server error ({response.status})"}
+    except aiohttp.ClientError:
+        return {"success": False, "error": "Could not reach authentication server. Please try again later."}
+
+@api_router.post("/marketplace/external-auth/callback")
+async def marketplace_external_callback(request: ExternalAuthCallbackRequest):
+    """Callback from external auth - store session"""
+    marketplace_manager.store_external_session(
+        request.username, request.external_token, request.user_data
+    )
+    return {"success": True, "username": request.username}
+
+@api_router.get("/marketplace/external-auth/status")
+async def marketplace_external_auth_status(username: str = None):
+    """Check if user has an active external auth session"""
+    if not username:
+        return {"authenticated": False, "auth_configured": bool(EXTERNAL_AUTH_API_URL)}
+    
+    return {
+        "authenticated": marketplace_manager.validate_external_session(username),
+        "auth_configured": bool(EXTERNAL_AUTH_API_URL),
+        "username": username
+    }
+
+@api_router.post("/marketplace/external-auth/logout")
+async def marketplace_external_logout(username: str = None):
+    """Logout from external auth"""
+    if username:
+        marketplace_manager.clear_external_session(username)
+    return {"success": True}
+
+@api_router.post("/marketplace/version-check")
+async def marketplace_version_check(template_id: str = None, min_version: str = None):
+    """Check if current ServerCraft version is compatible with a template"""
+    current_version = APP_VERSION
+    
+    if template_id:
+        # Look up template's min version
+        data = marketplace_manager._load_json(marketplace_manager.templates_file)
+        for template in data.get("templates", []):
+            if template.get("id") == template_id:
+                min_version = template.get("min_servercraft_version", "")
+                break
+    
+    if not min_version:
+        return {"compatible": True, "message": "No version requirement", "current_version": current_version}
+    
+    result = marketplace_manager.check_version_compatibility(min_version, current_version)
+    result["current_version"] = current_version
+    return result
+
+# ==================== END MARKETPLACE EXTERNAL AUTH ====================
+
 # ==================== ANALYTICS & FEEDBACK ROUTES ====================
 
 @api_router.get("/analytics/device")
@@ -1977,6 +2106,15 @@ def get_user_from_token(token: str):
 async def check_marketplace_eligibility(request: Request, token: str = None):
     """Check if current user can access the marketplace"""
     user_data = get_user_from_token(token)
+    
+    # Check if sub-user (bypass account age)
+    is_sub_user = False
+    if not user_data and token:
+        sub_session = sub_user_manager.validate_session(token)
+        if sub_session:
+            user_data = {"username": sub_session.get("username", ""), "created_at": datetime.now(timezone.utc).isoformat()}
+            is_sub_user = True
+    
     if not user_data:
         return {"eligible": False, "reason": "not_authenticated", "message": "Please log in first"}
     
@@ -1988,7 +2126,7 @@ async def check_marketplace_eligibility(request: Request, token: str = None):
     geo_location = {"ip": ip_address}
     marketplace_manager.log_marketplace_access(username, ip_address, geo_location, "eligibility_check")
     
-    return marketplace_manager.check_account_eligibility(username, created_at)
+    return marketplace_manager.check_account_eligibility(username, created_at, is_sub_user=is_sub_user)
 
 @api_router.get("/marketplace/check-upload-eligibility")
 async def check_upload_eligibility(request: Request, token: str = None):

@@ -3073,6 +3073,22 @@ function WorkshopView({ games, showToast }) {
                                             </div>
                                         </div>
                                         <p className="game-description">{games[selectedGame].description}</p>
+                                        {/* TeamSpeak 3 licensing notice */}
+                                        {games[selectedGame].license_notice && (
+                                            <div style={{ padding: '12px 16px', background: 'rgba(255,140,0,0.08)', borderRadius: '8px', border: '1px solid rgba(255,140,0,0.2)', borderLeft: '4px solid #ff8c00', marginBottom: '12px' }} data-testid="ts3-license-notice">
+                                                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                                    <i className="fas fa-exclamation-triangle" style={{ color: '#ff8c00', marginTop: '2px' }}></i>
+                                                    <div>
+                                                        <p style={{ margin: '0 0 6px 0', fontSize: '13px', color: 'var(--text-primary)' }}>{games[selectedGame].license_notice}</p>
+                                                        {games[selectedGame].license_url && (
+                                                            <a href={games[selectedGame].license_url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: '13px', fontWeight: '500' }}>
+                                                                <i className="fas fa-external-link-alt"></i> {games[selectedGame].license_url}
+                                                            </a>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                         <div className="game-workshop-link">
                                             <a href={`https://steamcommunity.com/app/${games[selectedGame].workshop_id}/workshop/`} target="_blank" rel="noopener noreferrer" className="btn btn-blue btn-sm">
                                                 <i className="fas fa-external-link-alt"></i> Open Steam Workshop
@@ -4023,6 +4039,15 @@ function MarketplaceView({ showToast }) {
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [myTemplates, setMyTemplates] = useState([]);
     
+    // External Auth state (ServerCraft website login for template creators)
+    const [extAuthUsername, setExtAuthUsername] = useState('');
+    const [extAuthPassword, setExtAuthPassword] = useState('');
+    const [extAuthStatus, setExtAuthStatus] = useState(null);
+    const [extAuthLoading, setExtAuthLoading] = useState(false);
+    
+    // Version check state
+    const [versionMismatch, setVersionMismatch] = useState(null);
+    
     // Upload form state with required security fields
     const [uploadForm, setUploadForm] = useState({
         template_name: '',
@@ -4034,7 +4059,8 @@ function MarketplaceView({ showToast }) {
         description: '',
         screenshots: [],
         config: {},
-        tags: []
+        tags: [],
+        min_servercraft_version: ''
     });
     const [screenshotPreviews, setScreenshotPreviews] = useState([]);
 
@@ -4217,11 +4243,12 @@ function MarketplaceView({ showToast }) {
                 await loadMyTemplates();
                 setActiveTab('my-templates');
             } else {
-                // Show detailed rejection message with missing fields
+                // Show detailed rejection message
                 if (data.rejected && data.missing_fields?.length > 0) {
                     showToast(`Template rejected. Missing required fields: ${data.missing_fields.join(', ')}. Please resubmit with all required information.`, 'error');
-                } else if (data.reason === 'security_threat') {
-                    showToast('Template rejected due to security concerns. Please remove any suspicious code and resubmit.', 'error');
+                } else if (data.reason === 'malicious_code' || data.suspend_account) {
+                    // Critical security rejection - malicious code detected
+                    showToast(data.message || 'Template rejected due to malicious code.', 'error');
                 } else {
                     showToast(data.message || data.errors?.join(', ') || 'Upload failed', 'error');
                 }
@@ -4234,6 +4261,15 @@ function MarketplaceView({ showToast }) {
     const handleDownloadTemplate = async (templateId) => {
         const token = getToken();
         try {
+            // Version check first
+            const versionRes = await fetch(`${API_BASE}/api/marketplace/version-check?template_id=${templateId}`, { method: 'POST' });
+            const versionData = await versionRes.json();
+            
+            if (versionData && !versionData.compatible) {
+                setVersionMismatch(versionData);
+                return;
+            }
+            
             const res = await fetch(`${API_BASE}/api/marketplace/templates/${templateId}/download?token=${token}`, { method: 'POST' });
             const data = await res.json();
             if (data.success) {
@@ -4491,6 +4527,69 @@ function MarketplaceView({ showToast }) {
             {/* Upload Tab */}
             {activeTab === 'upload' && (
                 <div className="marketplace-upload">
+                    {/* External Auth Notice - Creators must login via ServerCraft website */}
+                    <div style={{ padding: '16px', background: 'rgba(59,130,246,0.06)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '20px' }} data-testid="external-auth-section">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+                            <i className="fas fa-globe" style={{ color: '#3b82f6', fontSize: '20px' }}></i>
+                            <div>
+                                <strong>Template Creator Authentication</strong>
+                                <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                    To upload templates, plugins, or add-ons, you must register and login via the ServerCraft website. 
+                                    Your website account is separate from your ServerCraft panel admin account.
+                                </p>
+                            </div>
+                        </div>
+                        {!extAuthStatus?.authenticated ? (
+                            <div>
+                                <div className="form-row" style={{ marginBottom: '8px' }}>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                        <input type="text" className="form-input" placeholder="Website username" value={extAuthUsername} onChange={e => setExtAuthUsername(e.target.value)} data-testid="ext-auth-username" />
+                                    </div>
+                                    <div className="form-group" style={{ marginBottom: 0 }}>
+                                        <input type="password" className="form-input" placeholder="Website password" value={extAuthPassword} onChange={e => setExtAuthPassword(e.target.value)} data-testid="ext-auth-password" />
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <button type="button" className="btn btn-primary btn-sm" disabled={extAuthLoading || !extAuthUsername || !extAuthPassword}
+                                        onClick={async () => {
+                                            setExtAuthLoading(true);
+                                            try {
+                                                const res = await fetch(`${API_BASE}/api/marketplace/external-auth/login`, {
+                                                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({ username: extAuthUsername, password: extAuthPassword })
+                                                });
+                                                const data = await res.json();
+                                                if (data.success) {
+                                                    setExtAuthStatus({ authenticated: true, username: data.username });
+                                                    showToast(`Logged in as ${data.username}`, 'success');
+                                                } else {
+                                                    showToast(data.error || 'Login failed', 'error');
+                                                }
+                                            } catch (e) { showToast('Authentication failed', 'error'); }
+                                            setExtAuthLoading(false);
+                                        }}
+                                        data-testid="ext-auth-login-btn"
+                                    >
+                                        <i className={`fas ${extAuthLoading ? 'fa-spinner fa-spin' : 'fa-sign-in-alt'}`}></i> Login
+                                    </button>
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                        Don't have an account? Register at the ServerCraft website (coming soon)
+                                    </span>
+                                </div>
+                            </div>
+                        ) : (
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#22c55e' }}><i className="fas fa-check-circle"></i> Logged in as <strong>{extAuthStatus.username}</strong></span>
+                                <button type="button" className="btn btn-gray btn-sm" onClick={async () => {
+                                    await fetch(`${API_BASE}/api/marketplace/external-auth/logout?username=${extAuthStatus.username}`, { method: 'POST' });
+                                    setExtAuthStatus(null);
+                                }}>
+                                    <i className="fas fa-sign-out-alt"></i> Logout
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                    
                     {/* Upload eligibility check */}
                     {!uploadEligibility?.eligible ? (
                         <div className="upload-blocked">
@@ -4585,6 +4684,19 @@ function MarketplaceView({ showToast }) {
                             </div>
 
                             <div className="form-group">
+                                <label>Minimum ServerCraft Version (optional)</label>
+                                <input 
+                                    type="text" 
+                                    className="form-input"
+                                    value={uploadForm.min_servercraft_version}
+                                    onChange={(e) => setUploadForm({...uploadForm, min_servercraft_version: e.target.value})}
+                                    placeholder="e.g. 2026.3.0"
+                                    data-testid="min-version-input"
+                                />
+                                <small style={{ color: 'var(--text-secondary)' }}>Leave blank for no version requirement. Users with older versions will see a "version mismatch" error.</small>
+                            </div>
+
+                            <div className="form-group">
                                 <label>Game *</label>
                                 <select 
                                     className="form-select"
@@ -4599,6 +4711,7 @@ function MarketplaceView({ showToast }) {
                                     <option value="dayz_modded">DayZ (Modded)</option>
                                     <option value="rust">Rust</option>
                                     <option value="minecraft">Minecraft</option>
+                                <option value="teamspeak3">TeamSpeak 3</option>
                                     <option value="valheim">Valheim</option>
                                     <option value="squad">Squad</option>
                                     <option value="project_zomboid">Project Zomboid</option>
@@ -4773,6 +4886,7 @@ function MarketplaceView({ showToast }) {
                                 <p><strong>Game:</strong> {selectedTemplate.game}</p>
                                 <p><strong>Downloads:</strong> {selectedTemplate.downloads}</p>
                                 <p><strong>Rating:</strong> {renderStars(selectedTemplate.rating || 0)} ({selectedTemplate.ratings_count || 0} reviews)</p>
+                                {selectedTemplate.min_servercraft_version && <p><strong>Requires:</strong> ServerCraft {selectedTemplate.min_servercraft_version}+</p>}
                                 <p><strong>Description:</strong></p>
                                 <p>{selectedTemplate.description}</p>
                             </div>
@@ -4831,6 +4945,48 @@ function MarketplaceView({ showToast }) {
                             >
                                 <i className="fas fa-flag"></i> Report
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            
+            {/* Version Mismatch Modal */}
+            {versionMismatch && (
+                <div className="modal" data-testid="version-mismatch-modal">
+                    <div className="modal-overlay" onClick={() => setVersionMismatch(null)}></div>
+                    <div className="modal-content" style={{ maxWidth: '500px' }}>
+                        <div className="modal-header" style={{ borderBottom: '2px solid rgba(239,68,68,0.3)' }}>
+                            <h3 style={{ color: '#ef4444' }}><i className="fas fa-exclamation-triangle"></i> Version Mismatch</h3>
+                            <button className="modal-close" onClick={() => setVersionMismatch(null)}><i className="fas fa-times"></i></button>
+                        </div>
+                        <div className="modal-body" style={{ textAlign: 'center', padding: '24px' }}>
+                            <div style={{ fontSize: '48px', marginBottom: '16px', color: '#ef4444' }}><i className="fas fa-code-branch"></i></div>
+                            <p style={{ fontSize: '15px', marginBottom: '16px' }}>{versionMismatch.message}</p>
+                            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '16px' }}>
+                                <div style={{ padding: '10px 16px', background: 'rgba(239,68,68,0.1)', borderRadius: '8px', border: '1px solid rgba(239,68,68,0.2)' }}>
+                                    <small style={{ color: 'var(--text-secondary)' }}>Your Version</small>
+                                    <div style={{ fontWeight: '700', color: '#ef4444' }}>{versionMismatch.current_version}</div>
+                                </div>
+                                <div style={{ padding: '10px 16px', background: 'rgba(34,197,94,0.1)', borderRadius: '8px', border: '1px solid rgba(34,197,94,0.2)' }}>
+                                    <small style={{ color: 'var(--text-secondary)' }}>Required</small>
+                                    <div style={{ fontWeight: '700', color: '#22c55e' }}>{versionMismatch.required_version}</div>
+                                </div>
+                            </div>
+                            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
+                                Please update your ServerCraft to the latest version to download this template.
+                            </p>
+                            <div style={{ padding: '10px', background: 'rgba(59,130,246,0.08)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)', fontSize: '13px', wordBreak: 'break-all' }}>
+                                <i className="fas fa-link" style={{ color: '#3b82f6', marginRight: '6px' }}></i>
+                                <a href={versionMismatch.update_url} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }} data-testid="update-link">
+                                    {versionMismatch.update_url}
+                                </a>
+                                <button className="btn btn-gray btn-sm" style={{ marginLeft: '8px' }} onClick={() => { navigator.clipboard.writeText(versionMismatch.update_url); showToast('Link copied!', 'success'); }}>
+                                    <i className="fas fa-copy"></i> Copy
+                                </button>
+                            </div>
+                        </div>
+                        <div className="modal-footer">
+                            <button className="btn btn-gray" onClick={() => setVersionMismatch(null)}><i className="fas fa-times"></i> Close</button>
                         </div>
                     </div>
                 </div>
@@ -5344,11 +5500,27 @@ function CreateServerModal({ games, onClose, onCreate }) {
                                 <option value="fivem">GTA V RP (FiveM)</option>
                                 <option value="source_engine">Source Engine</option>
                                 <option value="minecraft">Minecraft</option>
+                                <option value="teamspeak3">TeamSpeak 3</option>
                             </select>
                             {requiresOwnership && (
                                 <p className="form-warning">
-                                    ⚠️ This game requires Steam account ownership to download server files.
+                                    This game requires Steam account ownership to download server files.
                                 </p>
+                            )}
+                            {formData.game === 'teamspeak3' && (
+                                <div style={{ padding: '12px 16px', background: 'rgba(255,140,0,0.08)', borderRadius: '8px', border: '1px solid rgba(255,140,0,0.2)', borderLeft: '4px solid #ff8c00', marginTop: '8px' }} data-testid="ts3-create-notice">
+                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                                        <i className="fas fa-exclamation-triangle" style={{ color: '#ff8c00', marginTop: '2px' }}></i>
+                                        <div>
+                                            <p style={{ margin: '0 0 6px 0', fontSize: '13px', color: 'var(--text-primary)' }}>
+                                                TeamSpeak 3 servers are free with up to 32 slots available. Servers that require more than 32 slots will require a license from TeamSpeak.
+                                            </p>
+                                            <a href="https://www.teamspeak.com/en/features/licensing/" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', fontSize: '13px', fontWeight: '500' }}>
+                                                <i className="fas fa-external-link-alt"></i> https://www.teamspeak.com/en/features/licensing/
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
                             )}
                         </div>
                         <div className="form-row">

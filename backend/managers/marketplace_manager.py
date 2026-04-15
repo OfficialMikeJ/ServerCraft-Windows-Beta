@@ -58,8 +58,16 @@ class MarketplaceManager:
     
     # ==================== ACCESS CONTROL ====================
     
-    def check_account_eligibility(self, username: str, account_created_at: str) -> Dict:
+    def check_account_eligibility(self, username: str, account_created_at: str, is_sub_user: bool = False) -> Dict:
         """Check if account meets marketplace requirements"""
+        # Admin-created sub-users bypass account age requirement
+        if is_sub_user:
+            return {
+                "eligible": True,
+                "reason": None,
+                "message": "Sub-user account eligible for marketplace access (admin-created bypass)"
+            }
+        
         try:
             created_dt = datetime.fromisoformat(account_created_at.replace('Z', '+00:00'))
             now = datetime.now(timezone.utc)
@@ -210,13 +218,73 @@ class MarketplaceManager:
     
     # Dangerous patterns that could indicate malicious code
     DANGEROUS_PATTERNS = [
-        "eval(", "exec(", "import os", "import subprocess", "import sys",
-        "__import__", "system(", "popen(", "spawn", "shell=True",
-        "rm -rf", "del /f", "format c:", "powershell", ".exe",
-        "<script>", "javascript:", "onerror=", "onclick=",
-        "password", "credential", "token", "api_key", "secret",
-        "\\x", "\\u00", "base64.decode", "atob(", "btoa("
+        # Code execution
+        "eval(", "exec(", "compile(", "execfile(", "__import__(",
+        "subprocess", "os.system", "os.popen", "os.exec",
+        "commands.getoutput", "commands.getstatusoutput",
+        "spawn", "shell=True", "Popen(",
+        # File system attacks
+        "rm -rf", "del /f", "format c:", "rmdir /s",
+        "shutil.rmtree", "os.remove", "os.unlink", "os.rmdir",
+        # Shell/powershell
+        "powershell", "cmd.exe", "bash -c", "sh -c", "/bin/sh",
+        "Start-Process", "Invoke-Expression", "Invoke-WebRequest",
+        "New-Object System.Net", "DownloadFile(", "DownloadString(",
+        # Executable/binary
+        ".exe", ".dll", ".bat", ".ps1", ".vbs", ".scr", ".com", ".msi",
+        ".cmd", ".wsf", ".wsh", ".pif",
+        # Network/data exfiltration
+        "socket.connect", "urllib.request", "requests.post",
+        "requests.get", "httplib", "ftplib", "smtplib",
+        "webhook", "discord.com/api/webhooks", "telegram.org/bot",
+        # Credential harvesting
+        "password", "credential", "token", "api_key", "secret_key",
+        "private_key", "ssh_key", "auth_token", "session_id",
+        "keylogger", "keystroke", "clipboard",
+        "GetClipboardData", "SetClipboardData",
+        # Registry/system modification
+        "winreg", "RegSetValue", "RegCreateKey", "RegDeleteKey",
+        "HKEY_LOCAL_MACHINE", "HKEY_CURRENT_USER",
+        "schtasks", "sc create", "net user",
+        # Web injection
+        "<script>", "javascript:", "onerror=", "onclick=", "onload=",
+        "onmouseover=", "<iframe", "<object", "<embed",
+        "document.cookie", "document.write", "innerHTML",
+        "XMLHttpRequest", "fetch(", "navigator.sendBeacon",
+        # Encoding/obfuscation
+        "\\x", "\\u00", "base64.decode", "base64.b64decode",
+        "atob(", "btoa(", "String.fromCharCode",
+        "charCodeAt", "unescape(", "decodeURIComponent(",
+        # Crypto mining
+        "coinhive", "cryptonight", "monero", "stratum+tcp",
+        "minergate", "hashrate",
+        # Reverse shells
+        "reverse_tcp", "meterpreter", "netcat", "nc -e",
+        "bind_shell", "/dev/tcp/",
+        # Python-specific attacks
+        "pickle.loads", "yaml.load", "marshal.loads",
+        "__builtins__", "__globals__", "__subclasses__",
+        "ctypes.windll", "ctypes.cdll",
+        # DLL injection / process manipulation
+        "CreateRemoteThread", "VirtualAllocEx", "WriteProcessMemory",
+        "LoadLibrary", "GetProcAddress", "NtCreateThread"
     ]
+    
+    # Blocked file extensions in template content
+    BLOCKED_EXTENSIONS = [
+        ".exe", ".dll", ".bat", ".ps1", ".vbs", ".scr", ".com",
+        ".msi", ".cmd", ".wsf", ".wsh", ".pif", ".cpl", ".inf",
+        ".reg", ".rgs", ".sct", ".shb", ".sys", ".drv"
+    ]
+    
+    # Malicious code detection result message
+    MALICIOUS_CODE_MESSAGE = (
+        "Your project contains malicious code that is harmful and will not be allowed on our platform. "
+        "Your account is now suspended and will be terminated effective immediately. "
+        "Your ISP & IP Address will be logged for ban evasion. "
+        "Any attempts to circumvent any of these systems will result in local law enforcement being contacted "
+        "and all information will be shared for criminal charges."
+    )
     
     def validate_template(self, template_data: Dict) -> Dict:
         """Validate template before upload - includes security checks"""
@@ -280,9 +348,10 @@ class MarketplaceManager:
             return {
                 "valid": False,
                 "rejected": True,
-                "reason": "security_threat",
+                "reason": "malicious_code",
+                "suspend_account": True,
                 "errors": security_issues,
-                "message": "Template rejected due to potential security concerns. Please remove any suspicious code or content and resubmit."
+                "message": self.MALICIOUS_CODE_MESSAGE
             }
         
         if errors:
@@ -291,23 +360,59 @@ class MarketplaceManager:
         return {"valid": True, "errors": []}
     
     def _security_scan_template(self, template_data: Dict) -> List[str]:
-        """Scan template for potentially malicious content"""
+        """Deep security scan for malicious content"""
         issues = []
         
-        # Convert template to string for scanning
+        # Convert template to string for pattern scanning
         template_str = json.dumps(template_data).lower()
         
+        # Check dangerous patterns
         for pattern in self.DANGEROUS_PATTERNS:
             if pattern.lower() in template_str:
-                issues.append(f"Potentially dangerous pattern detected: '{pattern}'")
+                issues.append(f"Dangerous pattern detected: '{pattern}'")
         
-        # Check for suspicious base64 encoded content (might hide malicious code)
+        # Check for blocked file extensions in any string values
+        def scan_for_extensions(obj, path=""):
+            if isinstance(obj, str):
+                for ext in self.BLOCKED_EXTENSIONS:
+                    if ext in obj.lower():
+                        issues.append(f"Blocked file type '{ext}' found at {path}")
+            elif isinstance(obj, dict):
+                for k, v in obj.items():
+                    scan_for_extensions(v, f"{path}.{k}")
+            elif isinstance(obj, list):
+                for i, v in enumerate(obj):
+                    scan_for_extensions(v, f"{path}[{i}]")
+        
+        scan_for_extensions(template_data.get("config", {}), "config")
+        
+        # Check for suspicious base64 encoded content
         config = template_data.get("config", {})
         if isinstance(config, dict):
             config_str = json.dumps(config)
-            # Check for very long strings that might be obfuscated code
-            if len(config_str) > 100000:  # 100KB limit for config
+            # Size limit
+            if len(config_str) > 100000:
                 issues.append("Configuration data exceeds size limit (potential code injection)")
+            
+            # Check for long base64-like strings (obfuscated payloads)
+            import re
+            b64_matches = re.findall(r'[A-Za-z0-9+/=]{100,}', config_str)
+            if b64_matches:
+                issues.append(f"Suspicious encoded data detected ({len(b64_matches)} block(s))")
+            
+            # Check for hex-encoded strings
+            hex_matches = re.findall(r'(?:\\x[0-9a-fA-F]{2}){4,}', config_str)
+            if hex_matches:
+                issues.append(f"Hex-encoded data detected ({len(hex_matches)} block(s))")
+        
+        # Check for IP addresses (potential C2 servers)
+        import re
+        ip_pattern = r'\b(?:\d{1,3}\.){3}\d{1,3}\b'
+        ips = re.findall(ip_pattern, template_str)
+        # Filter out common safe IPs
+        suspicious_ips = [ip for ip in ips if ip not in ('127.0.0.1', '0.0.0.0', '255.255.255.255', '192.168.1.1')]
+        if len(suspicious_ips) > 3:
+            issues.append(f"Multiple IP addresses detected ({len(suspicious_ips)}) - potential C2 communication")
         
         return issues
     
@@ -362,6 +467,7 @@ class MarketplaceManager:
             "screenshots": template_data["screenshots"],
             "config": template_data["config"],
             "tags": template_data.get("tags", []),
+            "min_servercraft_version": template_data.get("min_servercraft_version", ""),
             "downloads": 0,
             "rating": 0,
             "ratings_count": 0,
@@ -719,9 +825,80 @@ class MarketplaceManager:
                 }
         
         return {"success": False, "error": "Template not found"}
-
-
-# Terms of Service content
+    
+    # ==================== VERSION COMPATIBILITY CHECK ====================
+    
+    @staticmethod
+    def check_version_compatibility(template_min_version: str, current_version: str) -> Dict:
+        """Check if current ServerCraft version is compatible with a template"""
+        if not template_min_version:
+            return {"compatible": True, "message": "No version requirement"}
+        
+        def parse_version(v: str) -> tuple:
+            import re
+            clean = re.sub(r'[-.]?[A-Za-z]+$', '', v.strip())
+            parts = clean.split('.')
+            result = []
+            for p in parts:
+                try:
+                    result.append(int(p))
+                except ValueError:
+                    result.append(0)
+            return tuple(result)
+        
+        try:
+            current = parse_version(current_version)
+            required = parse_version(template_min_version)
+            
+            if current >= required:
+                return {"compatible": True, "message": "Version compatible"}
+            else:
+                return {
+                    "compatible": False,
+                    "message": f"Version mismatch - This template requires ServerCraft {template_min_version} or newer. "
+                               f"Your version: {current_version}. Please update to the latest version.",
+                    "current_version": current_version,
+                    "required_version": template_min_version,
+                    "update_url": "https://github.com/OfficialMikeJ/ServerCraft-Windows-Beta/releases"
+                }
+        except Exception:
+            return {"compatible": True, "message": "Unable to verify version"}
+    
+    # ==================== EXTERNAL AUTH (ServerCraft Website) ====================
+    
+    def store_external_session(self, username: str, external_token: str, user_data: Dict) -> Dict:
+        """Store an externally authenticated session from servercraft.dev"""
+        data = self._load_json(self.tos_agreements_file)
+        session_entry = {
+            "username": username,
+            "external_token": external_token,
+            "authenticated_at": datetime.now(timezone.utc).isoformat(),
+            "user_data": user_data
+        }
+        data.setdefault("external_sessions", {})[username] = session_entry
+        self._save_json(self.tos_agreements_file, data)
+        return {"success": True, "username": username}
+    
+    def validate_external_session(self, username: str) -> bool:
+        """Check if user has a valid external session"""
+        data = self._load_json(self.tos_agreements_file)
+        session = data.get("external_sessions", {}).get(username)
+        if not session:
+            return False
+        try:
+            auth_time = datetime.fromisoformat(session["authenticated_at"].replace('Z', '+00:00'))
+            if (datetime.now(timezone.utc) - auth_time).total_seconds() > 86400:
+                return False
+        except Exception:
+            return False
+        return True
+    
+    def clear_external_session(self, username: str):
+        """Clear external session"""
+        data = self._load_json(self.tos_agreements_file)
+        if username in data.get("external_sessions", {}):
+            del data["external_sessions"][username]
+            self._save_json(self.tos_agreements_file, data)
 MARKETPLACE_TOS = """
 # ServerCraft Template Marketplace Terms of Service
 

@@ -76,6 +76,34 @@
       "role": "moderator",
       "created_at": "2026-04-15T18:48:22.150118+00:00",
       "expires_at": "2026-04-15T19:48:22.150059+00:00"
+    },
+    "dIO9-KuOnTV232BZDU1bThOn7Bh1AycpdikcONYIF94": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T19:59:26.059305+00:00",
+      "expires_at": "2026-04-15T20:59:26.331718+00:00"
+    },
+    "6QMq1v2-AWDkpbNbS8PrDVioOwhu82RGpIVVA6C4fIg": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T20:03:10.389696+00:00",
+      "expires_at": "2026-04-15T21:03:10.389626+00:00"
+    },
+    "Nx3QgQqtOpmBFXlt0TdrOiX80PeA-yVHChb9a49bo9k": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T20:03:56.699793+00:00",
+      "expires_at": "2026-04-15T21:03:56.818827+00:00"
+    },
+    "C6ni0JmuclcAnhv45FX7DDFZkASIIBgXYK96EhQ9TSo": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T20:04:53.917014+00:00",
+      "expires_at": "2026-04-15T21:05:02.006612+00:00"
     }
   }
 }

@@ -311,6 +311,18 @@ class ServerManager:
                 f"+hostname \"{server_name}\""
             ])
         
+        elif game == "teamspeak3":
+            cmd.extend([
+                f"voice_port={port}",
+                f"query_port={query_port}",
+                f"filetransfer_port={port + 2}",
+                f"serveradmin_password={server.get('password', '')}",
+                f"default_virtualserver_name=\"{server_name}\"",
+                f"default_virtualserver_maxclients={max_players}",
+                "dbplugin=ts3db_sqlite3",
+                "logpath=logs"
+            ])
+        
         # Add custom parameters
         if server.get("custom_params"):
             cmd.extend(server["custom_params"].split())
