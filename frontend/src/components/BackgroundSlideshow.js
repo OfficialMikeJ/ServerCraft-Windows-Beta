@@ -61,12 +61,6 @@ export default function BackgroundSlideshow({ intervalSeconds = 15, category = '
   const [nextIndex, setNextIndex] = useState(1);
   const [transitioning, setTransitioning] = useState(false);
   const timerRef = useRef(null);
-  const intervalRef = useRef(intervalSeconds);
-
-  // Keep ref in sync with prop
-  useEffect(() => {
-    intervalRef.current = intervalSeconds;
-  }, [intervalSeconds]);
 
   // Build image list based on category - only when category changes
   useEffect(() => {
@@ -92,41 +86,18 @@ export default function BackgroundSlideshow({ intervalSeconds = 15, category = '
     });
   }, [images]);
 
-  // Single stable timer - uses ref for interval so it doesn't re-create
+  // Single stable timer for advancing slides
   useEffect(() => {
     if (images.length <= 1) return;
-
-    const tick = () => {
-      setTransitioning(true);
-
-      // After crossfade completes, swap layers
-      setTimeout(() => {
-        setCurrentIndex(prev => {
-          const next = (prev + 1) % images.length;
-          setNextIndex((next + 1) % images.length);
-          return next;
-        });
-        setTransitioning(false);
-      }, 1200);
-    };
-
-    // Start the interval
-    timerRef.current = setInterval(tick, intervalRef.current * 1000);
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [images]); // Only restart when image list changes
-
-  // When interval changes, restart timer without resetting current slide
-  useEffect(() => {
-    if (images.length <= 1) return;
-
-    // Clear existing timer
+    
+    // Clear any existing timer
     if (timerRef.current) clearInterval(timerRef.current);
 
     const tick = () => {
+      // Start crossfade
       setTransitioning(true);
+
+      // After crossfade animation completes (1.2s), swap the layers
       setTimeout(() => {
         setCurrentIndex(prev => {
           const next = (prev + 1) % images.length;
@@ -137,12 +108,14 @@ export default function BackgroundSlideshow({ intervalSeconds = 15, category = '
       }, 1200);
     };
 
-    timerRef.current = setInterval(tick, intervalSeconds * 1000);
+    // The interval is: display time + transition time
+    // So the image is VISIBLE for exactly intervalSeconds before any fade begins
+    timerRef.current = setInterval(tick, (intervalSeconds * 1000) + 1200);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [intervalSeconds, images.length]);
+  }, [intervalSeconds, images.length, images]);
 
   if (images.length === 0) return null;
 
