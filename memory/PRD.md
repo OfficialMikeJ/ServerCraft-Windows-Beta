@@ -59,6 +59,8 @@ Windows-based game server panel (ServerCraft) running on Windows Server 2022/202
 - [x] **Template Auto-Updater** - Installed tab in Marketplace tracks downloaded templates; checks for newer versions; one-click Update button
 - [x] **ServerCraft Self-Update System** - Checks GitHub releases API; centered modal with green "Yes, Update Now" / red "No, Update Later"; dismissible with header badge
 - [x] **Gaming Background Slideshow** - 17 images across 3 categories (Random/Arma 3/Arma Reforger); seamless 1.2s crossfade; default 15s interval adjustable 10-60s via green slider; category selector; glass overlay across entire UI; localStorage persistence
+- [x] **15 Background Categories** - All supported games have directories ready (DayZ, Rust, Valheim, Squad, Project Zomboid, Minecraft, TeamSpeak 3, Ground Branch, ICARUS, FiveM, Source Engine, No One Survived); empty categories show "coming soon" in dropdown
+- [x] **Role-Based View Restrictions** - Nav tabs filtered by role: Admin=all tabs, Moderator=Dashboard/Servers/Workshop/Marketplace/Feedback/About, Viewer=Dashboard/Servers/Marketplace/About; Settings & Users show "Access Restricted" for non-admins; server actions (start/stop/delete) disabled for unauthorized roles; server list filtered by assigned servers for non-admin sub-users; role badge in header
 
 ## Prioritized Backlog
 
