@@ -60,10 +60,15 @@ export default function BackgroundSlideshow({ intervalSeconds = 15, category = '
   const [currentIndex, setCurrentIndex] = useState(0);
   const [nextIndex, setNextIndex] = useState(1);
   const [transitioning, setTransitioning] = useState(false);
-  const [imagesLoaded, setImagesLoaded] = useState(new Set());
   const timerRef = useRef(null);
+  const intervalRef = useRef(intervalSeconds);
 
-  // Build image list based on category
+  // Keep ref in sync with prop
+  useEffect(() => {
+    intervalRef.current = intervalSeconds;
+  }, [intervalSeconds]);
+
+  // Build image list based on category - only when category changes
   useEffect(() => {
     let list;
     if (category === 'all') {
@@ -76,43 +81,68 @@ export default function BackgroundSlideshow({ intervalSeconds = 15, category = '
     setImages(list);
     setCurrentIndex(0);
     setNextIndex(list.length > 1 ? 1 : 0);
+    setTransitioning(false);
   }, [category]);
 
-  // Preload images
+  // Preload all images at full quality
   useEffect(() => {
-    images.forEach((src, i) => {
+    images.forEach((src) => {
       const img = new Image();
-      img.onload = () => {
-        setImagesLoaded(prev => new Set([...prev, i]));
-      };
       img.src = src;
     });
   }, [images]);
 
-  // Transition logic
-  const advanceSlide = useCallback(() => {
-    if (images.length <= 1) return;
-
-    setTransitioning(true);
-
-    // After fade completes, swap
-    setTimeout(() => {
-      setCurrentIndex(prev => {
-        const next = (prev + 1) % images.length;
-        setNextIndex((next + 1) % images.length);
-        return next;
-      });
-      setTransitioning(false);
-    }, 1200); // Match CSS transition duration
-  }, [images.length]);
-
-  // Auto-advance timer
+  // Single stable timer - uses ref for interval so it doesn't re-create
   useEffect(() => {
     if (images.length <= 1) return;
 
-    timerRef.current = setInterval(advanceSlide, intervalSeconds * 1000);
-    return () => clearInterval(timerRef.current);
-  }, [advanceSlide, intervalSeconds, images.length]);
+    const tick = () => {
+      setTransitioning(true);
+
+      // After crossfade completes, swap layers
+      setTimeout(() => {
+        setCurrentIndex(prev => {
+          const next = (prev + 1) % images.length;
+          setNextIndex((next + 1) % images.length);
+          return next;
+        });
+        setTransitioning(false);
+      }, 1200);
+    };
+
+    // Start the interval
+    timerRef.current = setInterval(tick, intervalRef.current * 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [images]); // Only restart when image list changes
+
+  // When interval changes, restart timer without resetting current slide
+  useEffect(() => {
+    if (images.length <= 1) return;
+
+    // Clear existing timer
+    if (timerRef.current) clearInterval(timerRef.current);
+
+    const tick = () => {
+      setTransitioning(true);
+      setTimeout(() => {
+        setCurrentIndex(prev => {
+          const next = (prev + 1) % images.length;
+          setNextIndex((next + 1) % images.length);
+          return next;
+        });
+        setTransitioning(false);
+      }, 1200);
+    };
+
+    timerRef.current = setInterval(tick, intervalSeconds * 1000);
+
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [intervalSeconds, images.length]);
 
   if (images.length === 0) return null;
 

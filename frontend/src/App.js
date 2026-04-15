@@ -3797,7 +3797,7 @@ function SettingsView({ settings, upnpStatus, showToast, bgInterval, setBgInterv
                             <div style={{ flex: 1, minWidth: '280px' }}>
                                 <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
                                     <i className="fas fa-clock" style={{ color: '#22c55e', marginRight: '6px' }}></i> 
-                                    Slide Interval
+                                    Background Interval (In Seconds):
                                 </label>
                                 <div className="bg-slider-container">
                                     <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>10s</span>
