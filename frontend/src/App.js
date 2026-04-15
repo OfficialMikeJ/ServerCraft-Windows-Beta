@@ -4683,8 +4683,11 @@ function MarketplaceView({ showToast }) {
                                 </div>
                             </div>
 
-                            <div className="form-group">
-                                <label>Minimum ServerCraft Version (optional)</label>
+                            <div className="form-group" style={{ position: 'relative' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <i className="fas fa-code-branch" style={{ color: '#3b82f6' }}></i> Minimum ServerCraft Version 
+                                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '400' }}>(optional)</span>
+                                </label>
                                 <input 
                                     type="text" 
                                     className="form-input"
@@ -4692,8 +4695,12 @@ function MarketplaceView({ showToast }) {
                                     onChange={(e) => setUploadForm({...uploadForm, min_servercraft_version: e.target.value})}
                                     placeholder="e.g. 2026.3.0"
                                     data-testid="min-version-input"
+                                    style={{ borderColor: uploadForm.min_servercraft_version ? 'rgba(59,130,246,0.3)' : undefined }}
                                 />
-                                <small style={{ color: 'var(--text-secondary)' }}>Leave blank for no version requirement. Users with older versions will see a "version mismatch" error.</small>
+                                <small style={{ color: 'var(--text-secondary)', display: 'block', marginTop: '4px' }}>
+                                    <i className="fas fa-info-circle" style={{ marginRight: '4px' }}></i>
+                                    Leave blank for no version requirement. Users with older versions will see a "version mismatch" error with a link to update.
+                                </small>
                             </div>
 
                             <div className="form-group">

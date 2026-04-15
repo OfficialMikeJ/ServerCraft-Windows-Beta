@@ -50,6 +50,12 @@ Windows-based game server panel (ServerCraft) running on Windows Server 2022/202
 - [x] **Template Ratings/Reviews** - 1-5 star ratings with optional text reviews; average rating displayed on cards; review form in template detail modal
 - [x] **WebSocket Mod Download Progress** - /ws/mod-download endpoint for real-time batch progress; progress bar with per-mod status, cache hits, and log console in Import Modlist tab
 - [x] **Sub-User Session Persistence** - validateStoredSession checks sub-user tokens via /api/sub-users/validate; localStorage stores sub-user role info
+- [x] **Marketplace Account Age Bypass** - Admin-created sub-users skip 24hr account age requirement
+- [x] **External Auth for Template Creators** - Login form in Upload tab authenticating against external ServerCraft website API (endpoint TBD)
+- [x] **Enhanced Malicious Code Scanner** - 80+ dangerous patterns, blocked file extensions, hex/base64 detection, IP scanning, suspension message
+- [x] **Version Compatibility Check** - Template downloads check version; "version mismatch" modal with current vs required + GitHub releases link
+- [x] **TeamSpeak 3 Support** - Added to GAME_DEFINITIONS with voice_port, query_port, filetransfer_port params; orange licensing notice with teamspeak.com link
+- [x] **Minimum Version Field** - Upload form includes optional min_servercraft_version for template compatibility
 
 ## Prioritized Backlog
 
