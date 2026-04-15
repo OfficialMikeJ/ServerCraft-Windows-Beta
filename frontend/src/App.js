@@ -1211,6 +1211,46 @@ function App() {
     const [bgInterval, setBgInterval] = useState(15);
     const [bgCategory, setBgCategory] = useState('all');
     
+    // Sub-user role-based access
+    const getSubUserData = () => {
+        try {
+            const raw = localStorage.getItem('servercraft_sub_user');
+            return raw ? JSON.parse(raw) : null;
+        } catch { return null; }
+    };
+    const subUserData = getSubUserData();
+    const isSubUser = !!subUserData;
+    const userRole = subUserData?.role || 'admin';
+    const userPermissions = subUserData?.permissions || ['*'];
+    const assignedServers = subUserData?.assigned_servers || [];
+    
+    const hasPermission = (perm) => {
+        if (!isSubUser) return true; // Admin panel user = full access
+        if (userPermissions.includes('*')) return true;
+        return userPermissions.includes(perm);
+    };
+    
+    // Nav tabs filtered by role
+    const getVisibleNavTabs = () => {
+        const allTabs = ['dashboard', 'servers', ...(settings.clustering_enabled ? ['clusters'] : []), 'steamcmd', 'workshop', 'marketplace', 'users', 'feedback', 'settings', 'about'];
+        
+        if (!isSubUser) return allTabs; // Admin = all tabs
+        
+        if (userRole === 'admin') return allTabs;
+        
+        if (userRole === 'moderator') {
+            // Moderators: can see servers, workshop, marketplace, feedback, about
+            return allTabs.filter(t => !['users', 'settings', 'steamcmd', 'clusters'].includes(t));
+        }
+        
+        if (userRole === 'viewer') {
+            // Viewers: dashboard, servers (read-only), marketplace (browse), about
+            return ['dashboard', 'servers', 'marketplace', 'about'];
+        }
+        
+        return allTabs;
+    };
+    
     // Refs for WebSocket and intervals
     const statsWsRef = useRef(null);
     const pollIntervalRef = useRef(null);
@@ -2047,7 +2087,7 @@ function App() {
                     <span className="brand-edition">Windows Edition</span>
                 </div>
                 <nav className="header-nav">
-                    {['dashboard', 'servers', ...(settings.clustering_enabled ? ['clusters'] : []), 'steamcmd', 'workshop', 'marketplace', 'users', 'feedback', 'settings', 'about'].map(view => (
+                    {getVisibleNavTabs().map(view => (
                         <button
                             key={view}
                             className={`nav-btn ${currentView === view ? 'active' : ''}`}
@@ -2060,8 +2100,13 @@ function App() {
                 </nav>
                 <div className="header-actions">
                     <span className="user-badge" title="Logged in as">
-                        <i className="fas fa-user"></i> {currentUsername}
+                        <i className={`fas ${isSubUser ? (userRole === 'moderator' ? 'fa-user-cog' : userRole === 'viewer' ? 'fa-eye' : 'fa-user-shield') : 'fa-user'}`}></i> {currentUsername}
                     </span>
+                    {isSubUser && (
+                        <span style={{ padding: '2px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: '600', background: userRole === 'admin' ? 'rgba(239,68,68,0.12)' : userRole === 'moderator' ? 'rgba(245,158,11,0.12)' : 'rgba(59,130,246,0.12)', color: userRole === 'admin' ? '#ef4444' : userRole === 'moderator' ? '#f59e0b' : '#3b82f6' }} data-testid="role-badge">
+                            {subUserData?.role_label || userRole}
+                        </span>
+                    )}
                     <span className="version-badge" data-testid="version-badge">v2026.3.0-BETA</span>
                     {updateInfo && updateDismissed && (
                         <button onClick={() => { setShowUpdateModal(true); setUpdateDismissed(false); }} title="Update available" data-testid="update-available-badge" style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '2px 8px', cursor: 'pointer', fontSize: '12px', color: '#22c55e', fontWeight: '600', marginLeft: '4px' }}>
@@ -2080,12 +2125,12 @@ function App() {
                 {currentView === 'dashboard' && (
                     <DashboardView
                         systemStats={systemStats}
-                        servers={servers}
+                        servers={isSubUser && userRole !== 'admin' && assignedServers.length > 0 ? servers.filter(s => assignedServers.includes(s.id)) : servers}
                         games={games}
                         runningServers={runningServers}
                         stoppedServers={stoppedServers}
-                        onStartServer={startServer}
-                        onStopServer={stopServer}
+                        onStartServer={hasPermission('server.start') ? startServer : null}
+                        onStopServer={hasPermission('server.stop') ? stopServer : null}
                         onOpenServer={openServerTab}
                         onNavigate={setCurrentView}
                     />
@@ -2094,7 +2139,7 @@ function App() {
                 {/* Servers */}
                 {currentView === 'servers' && (
                     <ServersView
-                        servers={servers}
+                        servers={isSubUser && userRole !== 'admin' && assignedServers.length > 0 ? servers.filter(s => assignedServers.includes(s.id)) : servers}
                         games={games}
                         openTabs={openTabs}
                         activeTab={activeTab}
@@ -2102,13 +2147,13 @@ function App() {
                         onOpenTab={openServerTab}
                         onCloseTab={closeServerTab}
                         onSetActiveTab={setActiveTab}
-                        onStartServer={startServer}
-                        onStopServer={stopServer}
-                        onRestartServer={restartServer}
-                        onInstallServer={installServer}
-                        onDeleteServer={deleteServer}
-                        onSendCommand={sendConsoleCommand}
-                        onCreateServer={() => setShowCreateModal(true)}
+                        onStartServer={hasPermission('server.start') ? startServer : null}
+                        onStopServer={hasPermission('server.stop') ? stopServer : null}
+                        onRestartServer={hasPermission('server.restart') ? restartServer : null}
+                        onInstallServer={hasPermission('server.start') ? installServer : null}
+                        onDeleteServer={!isSubUser ? deleteServer : null}
+                        onSendCommand={hasPermission('server.command') ? sendConsoleCommand : null}
+                        onCreateServer={!isSubUser ? () => setShowCreateModal(true) : null}
                     />
                 )}
 
@@ -2137,9 +2182,19 @@ function App() {
                     <MarketplaceView showToast={showToast} />
                 )}
 
-                {/* Sub-User Management */}
+                {/* Sub-User Management - Admin only */}
                 {currentView === 'users' && (
-                    <SubUserManagementView showToast={showToast} />
+                    isSubUser && userRole !== 'admin' ? (
+                        <section className="view-section" data-testid="access-denied-users">
+                            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                                <i className="fas fa-lock" style={{ fontSize: '48px', color: '#ef4444', marginBottom: '16px', display: 'block' }}></i>
+                                <h2>Access Restricted</h2>
+                                <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>User management is only accessible to administrators.</p>
+                            </div>
+                        </section>
+                    ) : (
+                        <SubUserManagementView showToast={showToast} />
+                    )
                 )}
 
                 {/* Feedback */}
@@ -2147,8 +2202,17 @@ function App() {
                     <FeedbackView showToast={showToast} />
                 )}
 
-                {/* Settings */}
+                {/* Settings - Admin only */}
                 {currentView === 'settings' && (
+                    isSubUser && userRole !== 'admin' ? (
+                        <section className="view-section" data-testid="access-denied">
+                            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                                <i className="fas fa-lock" style={{ fontSize: '48px', color: '#ef4444', marginBottom: '16px', display: 'block' }}></i>
+                                <h2>Access Restricted</h2>
+                                <p style={{ color: 'var(--text-secondary)', marginTop: '8px' }}>Settings are only accessible to administrators. Contact your admin for access.</p>
+                            </div>
+                        </section>
+                    ) : (
                     <SettingsView
                         settings={settings}
                         upnpStatus={upnpStatus}
@@ -2158,6 +2222,7 @@ function App() {
                         bgCategory={bgCategory}
                         setBgCategory={setBgCategory}
                     />
+                    )
                 )}
 
                 {/* About */}
@@ -3842,9 +3907,21 @@ function SettingsView({ settings, upnpStatus, showToast, bgInterval, setBgInterv
                                     data-testid="bg-category-select"
                                 >
                                     <option value="all">All Categories (Shuffled)</option>
-                                    <option value="random">Random</option>
-                                    <option value="arma3">Arma 3</option>
-                                    <option value="arma_reforger">Arma Reforger</option>
+                                    <option value="random">Random (10 images)</option>
+                                    <option value="arma3">Arma 3 (5 images)</option>
+                                    <option value="arma_reforger">Arma Reforger (2 images)</option>
+                                    <option value="dayz" disabled>DayZ (coming soon)</option>
+                                    <option value="rust" disabled>Rust (coming soon)</option>
+                                    <option value="valheim" disabled>Valheim (coming soon)</option>
+                                    <option value="squad" disabled>Squad (coming soon)</option>
+                                    <option value="project_zomboid" disabled>Project Zomboid (coming soon)</option>
+                                    <option value="minecraft" disabled>Minecraft (coming soon)</option>
+                                    <option value="teamspeak3" disabled>TeamSpeak 3 (coming soon)</option>
+                                    <option value="ground_branch" disabled>Ground Branch (coming soon)</option>
+                                    <option value="icarus" disabled>ICARUS (coming soon)</option>
+                                    <option value="fivem" disabled>FiveM (coming soon)</option>
+                                    <option value="source_engine" disabled>Source Engine (coming soon)</option>
+                                    <option value="no_one_survived" disabled>No One Survived (coming soon)</option>
                                 </select>
                             </div>
                         </div>

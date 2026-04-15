@@ -503,6 +503,16 @@
       "geo_location": {},
       "action": "browse",
       "timestamp": "2026-04-15T20:32:10.538549+00:00"
+    },
+    {
+      "id": "961da08e-a3e1-4baa-8a57-c796d40306f3",
+      "username": "ModUser",
+      "ip_address": "10.208.133.66",
+      "geo_location": {
+        "ip": "10.208.133.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T21:47:05.403242+00:00"
     }
   ]
 }

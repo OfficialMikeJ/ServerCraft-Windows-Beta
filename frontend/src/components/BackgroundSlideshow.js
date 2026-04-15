@@ -33,7 +33,19 @@ const BACKGROUND_CATEGORIES = {
       '/backgrounds/arma_reforger/06.jpg',
       '/backgrounds/arma_reforger/arma-reforger-update.jpg'
     ]
-  }
+  },
+  dayz:             { label: 'DayZ',              images: [] },
+  rust:             { label: 'Rust',              images: [] },
+  valheim:          { label: 'Valheim',           images: [] },
+  squad:            { label: 'Squad',             images: [] },
+  project_zomboid:  { label: 'Project Zomboid',   images: [] },
+  minecraft:        { label: 'Minecraft',         images: [] },
+  teamspeak3:       { label: 'TeamSpeak 3',       images: [] },
+  ground_branch:    { label: 'Ground Branch',     images: [] },
+  icarus:           { label: 'ICARUS',            images: [] },
+  fivem:            { label: 'FiveM',             images: [] },
+  source_engine:    { label: 'Source Engine',      images: [] },
+  no_one_survived:  { label: 'No One Survived',   images: [] }
 };
 
 // Get all images combined
