@@ -34,9 +34,41 @@ const BACKGROUND_CATEGORIES = {
       '/backgrounds/arma_reforger/arma-reforger-update.jpg'
     ]
   },
-  dayz:             { label: 'DayZ',              images: [] },
-  rust:             { label: 'Rust',              images: [] },
-  valheim:          { label: 'Valheim',           images: [] },
+  dayz: {
+    label: 'DayZ',
+    images: [
+      '/backgrounds/dayz/1389019.jpg',
+      '/backgrounds/dayz/dayz-pictures.jpg',
+      '/backgrounds/dayz/dayz-wallpaper.jpg',
+      '/backgrounds/dayz/dbxtvop5ioe51.jpg',
+      '/backgrounds/dayz/dayz-large.png',
+      '/backgrounds/dayz/maxresdefault.jpg',
+      '/backgrounds/dayz/dayz-mod-wallpaper.jpg',
+      '/backgrounds/dayz/dayz-gun-hat.jpg'
+    ]
+  },
+  rust: {
+    label: 'Rust',
+    images: [
+      '/backgrounds/rust/rust-game.jpg',
+      '/backgrounds/rust/rust-rad-suit.jpg',
+      '/backgrounds/rust/rust-2026-pick.jpg',
+      '/backgrounds/rust/wp12854936.jpg',
+      '/backgrounds/rust/wp4063847.jpg',
+      '/backgrounds/rust/wp7007774.jpg'
+    ]
+  },
+  valheim: {
+    label: 'Valheim',
+    images: [
+      '/backgrounds/valheim/1138907.jpg',
+      '/backgrounds/valheim/valheim-scene.png',
+      '/backgrounds/valheim/valheim-4k-texture.jpeg',
+      '/backgrounds/valheim/valheim-forest.jpg',
+      '/backgrounds/valheim/valheim-house.jpg',
+      '/backgrounds/valheim/wp8599099.jpg'
+    ]
+  },
   squad:            { label: 'Squad',             images: [] },
   project_zomboid:  { label: 'Project Zomboid',   images: [] },
   minecraft:        { label: 'Minecraft',         images: [] },

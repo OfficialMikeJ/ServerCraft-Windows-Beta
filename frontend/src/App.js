@@ -3910,9 +3910,9 @@ function SettingsView({ settings, upnpStatus, showToast, bgInterval, setBgInterv
                                     <option value="random">Random (10 images)</option>
                                     <option value="arma3">Arma 3 (5 images)</option>
                                     <option value="arma_reforger">Arma Reforger (2 images)</option>
-                                    <option value="dayz" disabled>DayZ (coming soon)</option>
-                                    <option value="rust" disabled>Rust (coming soon)</option>
-                                    <option value="valheim" disabled>Valheim (coming soon)</option>
+                                    <option value="dayz">DayZ (8 images)</option>
+                                    <option value="rust">Rust (6 images)</option>
+                                    <option value="valheim">Valheim (6 images)</option>
                                     <option value="squad" disabled>Squad (coming soon)</option>
                                     <option value="project_zomboid" disabled>Project Zomboid (coming soon)</option>
                                     <option value="minecraft" disabled>Minecraft (coming soon)</option>
@@ -3926,11 +3926,14 @@ function SettingsView({ settings, upnpStatus, showToast, bgInterval, setBgInterv
                             </div>
                         </div>
                         
-                        <div style={{ marginTop: '12px', display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
-                            <span><i className="fas fa-image"></i> Random: 10 images</span>
-                            <span><i className="fas fa-image"></i> Arma 3: 5 images</span>
-                            <span><i className="fas fa-image"></i> Arma Reforger: 2 images</span>
-                            <span><i className="fas fa-images"></i> Total: 17 images</span>
+                        <div style={{ marginTop: '12px', display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
+                            <span><i className="fas fa-image"></i> Random: 10</span>
+                            <span><i className="fas fa-image"></i> Arma 3: 5</span>
+                            <span><i className="fas fa-image"></i> Arma Reforger: 2</span>
+                            <span><i className="fas fa-image"></i> DayZ: 8</span>
+                            <span><i className="fas fa-image"></i> Rust: 6</span>
+                            <span><i className="fas fa-image"></i> Valheim: 6</span>
+                            <span style={{ fontWeight: '600', color: '#22c55e' }}><i className="fas fa-images"></i> Total: 37 images</span>
                         </div>
                     </div>
                 </div>
