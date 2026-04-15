@@ -1,0 +1,11 @@
+{
+  "enabled": false,
+  "domain": "example.com",
+  "subdomain": "servers",
+  "is_dynamic_ip": true,
+  "propagated": false,
+  "last_check": "2026-01-04T18:10:44.791870+00:00",
+  "setup_instructions_acknowledged": false,
+  "full_domain": "servers.example.com",
+  "configured_at": "2026-01-04T18:10:44.637289+00:00"
+}

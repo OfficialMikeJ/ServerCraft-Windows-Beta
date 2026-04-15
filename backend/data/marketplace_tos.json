@@ -1,0 +1,12 @@
+{
+  "agreements": [
+    {
+      "id": "ac214c85-9cea-473d-95e5-878dbfcbf2e1",
+      "username": "Admin",
+      "agreed_at": "2025-12-23T20:01:47.663690+00:00",
+      "ip_address": "10.64.138.73",
+      "user_agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) HeadlessChrome/143.0.7499.4 Safari/537.36",
+      "tos_version": "1.0"
+    }
+  ]
+}
