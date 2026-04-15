@@ -15,29 +15,28 @@ from datetime import datetime
 class ServerCraftAPITester:
     def __init__(self, base_url="https://craft-server-22.preview.emergentagent.com"):
         self.base_url = base_url
-        self.token = None
+        self.admin_token = None
+        self.sub_user_token = None
         self.tests_run = 0
         self.tests_passed = 0
         self.failed_tests = []
 
-    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None):
+    def run_test(self, name, method, endpoint, expected_status, data=None, headers=None, params=None):
         """Run a single API test"""
-        url = f"{self.base_url}/{endpoint}"
+        url = f"{self.base_url}/api/{endpoint}"
         test_headers = {'Content-Type': 'application/json'}
         if headers:
             test_headers.update(headers)
-        if self.token:
-            test_headers['Authorization'] = f'Bearer {self.token}'
 
         self.tests_run += 1
         print(f"\n🔍 Testing {name}...")
-        print(f"   URL: {url}")
+        print(f"   URL: {method} {url}")
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=test_headers, timeout=10)
+                response = requests.get(url, headers=test_headers, params=params, timeout=10)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=test_headers, timeout=10)
+                response = requests.post(url, json=data, headers=test_headers, params=params, timeout=10)
             elif method == 'PUT':
                 response = requests.put(url, json=data, headers=test_headers, timeout=10)
             elif method == 'DELETE':
@@ -49,7 +48,9 @@ class ServerCraftAPITester:
                 print(f"✅ Passed - Status: {response.status_code}")
                 try:
                     response_data = response.json()
-                    if isinstance(response_data, dict) and len(str(response_data)) < 500:
+                    if 'token' in response_data:
+                        print(f"   Token received: {response_data['token'][:20]}...")
+                    elif len(str(response_data)) < 200:
                         print(f"   Response: {response_data}")
                     return True, response_data
                 except:
@@ -346,6 +347,153 @@ class ServerCraftAPITester:
                 print(f"   - {failure}")
         
         return self.tests_passed == self.tests_run
+
+    def test_admin_login(self):
+        """Test admin login with Admin/Password123!"""
+        print("\n" + "="*50)
+        print("TESTING ADMIN LOGIN")
+        print("="*50)
+        
+        success, response = self.run_test(
+            "Admin Login",
+            "POST",
+            "auth/login",
+            200,
+            data={"username": "Admin", "password": "Password123!", "remember_me": False}
+        )
+        if success and 'token' in response:
+            self.admin_token = response['token']
+            print(f"✅ Admin token obtained")
+            return True
+        return False
+
+    def test_sub_user_login(self):
+        """Test sub-user login with ModUser/ModPass123!"""
+        print("\n" + "="*50)
+        print("TESTING SUB-USER LOGIN")
+        print("="*50)
+        
+        success, response = self.run_test(
+            "Sub-User Login",
+            "POST",
+            "sub-users/login",
+            200,
+            data={"username": "ModUser", "password": "ModPass123!"}
+        )
+        if success and 'token' in response:
+            self.sub_user_token = response['token']
+            print(f"✅ Sub-user token obtained")
+            return True
+        return False
+
+    def test_sub_user_validation(self):
+        """Test sub-user token validation"""
+        print("\n" + "="*50)
+        print("TESTING SUB-USER VALIDATION")
+        print("="*50)
+        
+        if not self.sub_user_token:
+            print("❌ No sub-user token available for validation")
+            return False
+            
+        success, response = self.run_test(
+            "Sub-User Token Validation",
+            "POST",
+            "sub-users/validate",
+            200,
+            params={"sub_token": self.sub_user_token}
+        )
+        return success and response.get('valid', False)
+
+    def test_marketplace_ratings_endpoints(self):
+        """Test marketplace template rating and review endpoints"""
+        print("\n" + "="*50)
+        print("TESTING MARKETPLACE RATINGS & REVIEWS")
+        print("="*50)
+        
+        if not self.admin_token:
+            print("❌ No admin token available for marketplace testing")
+            return False
+            
+        # Test rating endpoint (should exist but may fail without valid template)
+        success1, response1 = self.run_test(
+            "Template Rating Endpoint",
+            "POST",
+            "marketplace/templates/test-template-id/rate",
+            400,  # Expecting 400 because template doesn't exist
+            data={"rating": 5, "review": "Test review"},
+            params={"token": self.admin_token}
+        )
+        
+        # Test reviews endpoint
+        success2, response2 = self.run_test(
+            "Template Reviews Endpoint",
+            "GET",
+            "marketplace/templates/test-template-id/reviews",
+            400,  # Expecting 400 because template doesn't exist
+            params={"token": self.admin_token}
+        )
+        
+        return success1 and success2
+
+    def test_version_badge(self):
+        """Test version information endpoint"""
+        print("\n" + "="*50)
+        print("TESTING VERSION BADGE")
+        print("="*50)
+        
+        success, response = self.run_test(
+            "App Info (Version Badge)",
+            "GET",
+            "info",
+            200
+        )
+        
+        if success:
+            version = response.get('version', '')
+            if 'v2026.3.0-BETA' in version or '2026.3.0-BETA' in version:
+                print(f"✅ Version badge shows correct version: {version}")
+                return True
+            else:
+                print(f"❌ Version badge shows incorrect version: {version}")
+                return False
+        return False
+
+    def run_all_tests(self):
+        """Run all test suites for iteration 3"""
+        print("🚀 Starting ServerCraft Iteration 3 API Testing")
+        print(f"📡 Testing against: {self.base_url}")
+        print(f"⏰ Started at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        # Test version badge first
+        self.test_version_badge()
+        
+        # Test authentication flows
+        admin_login_success = self.test_admin_login()
+        sub_user_login_success = self.test_sub_user_login()
+        
+        if admin_login_success:
+            self.test_marketplace_ratings_endpoints()
+        
+        if sub_user_login_success:
+            self.test_sub_user_validation()
+        
+        # Print final results
+        print("\n" + "="*60)
+        print("📊 FINAL TEST RESULTS")
+        print("="*60)
+        print(f"✅ Tests passed: {self.tests_passed}/{self.tests_run}")
+        print(f"❌ Tests failed: {len(self.failed_tests)}")
+        
+        if self.failed_tests:
+            print("\n🔍 Failed Tests:")
+            for i, failure in enumerate(self.failed_tests, 1):
+                print(f"   {i}. {failure}")
+        
+        success_rate = (self.tests_passed / self.tests_run * 100) if self.tests_run > 0 else 0
+        print(f"\n📈 Success Rate: {success_rate:.1f}%")
+        
+        return success_rate >= 70
 
 def main():
     tester = ServerCraftAPITester()

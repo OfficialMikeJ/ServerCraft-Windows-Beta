@@ -1250,6 +1250,7 @@ function App() {
     useEffect(() => {
         const validateStoredSession = async () => {
             const savedToken = localStorage.getItem('servercraft_auth_token');
+            const savedSubUser = localStorage.getItem('servercraft_sub_user');
             
             if (!savedToken) {
                 setAuthLoading(false);
@@ -1257,6 +1258,33 @@ function App() {
                 return;
             }
             
+            // Check if this is a sub-user session
+            if (savedSubUser) {
+                try {
+                    const response = await fetch(`${API_BASE}/api/sub-users/validate?sub_token=${savedToken}`, {
+                        method: 'POST'
+                    });
+                    const data = await response.json();
+                    
+                    if (data && data.valid) {
+                        const subUserData = JSON.parse(savedSubUser);
+                        setAuthToken(savedToken);
+                        setIsAuthenticated(true);
+                        setCurrentUsername(`${subUserData.username} (${subUserData.role_label})`);
+                        setMustChangePassword(false);
+                        setNeedsSecurityQuestions(false);
+                        setShowLoginScreen(false);
+                        setAuthLoading(false);
+                        return;
+                    }
+                } catch (error) {
+                    console.error('Sub-user session validation error:', error);
+                }
+                // Sub-user token invalid, clear and fall through
+                localStorage.removeItem('servercraft_sub_user');
+            }
+            
+            // Try admin session validation
             try {
                 const response = await fetch(`${API_BASE}/api/auth/validate?token=${savedToken}`, {
                     method: 'POST'
@@ -1274,6 +1302,7 @@ function App() {
                     // Token invalid, clear it
                     localStorage.removeItem('servercraft_auth_token');
                     localStorage.removeItem('servercraft_remember_me');
+                    localStorage.removeItem('servercraft_sub_user');
                     setShowLoginScreen(true);
                 }
             } catch (error) {
@@ -1485,6 +1514,10 @@ function App() {
     // Check if onboarding should be shown (for existing users who haven't seen it)
     useEffect(() => {
         if (!isAuthenticated || needsSecurityQuestions || mustChangePassword) return;
+        
+        // Skip onboarding for sub-users
+        const savedSubUser = localStorage.getItem('servercraft_sub_user');
+        if (savedSubUser) return;
         
         const onboardingData = localStorage.getItem('servercraft_onboarding');
         const specsAcknowledged = localStorage.getItem('servercraft_specs_acknowledged');
