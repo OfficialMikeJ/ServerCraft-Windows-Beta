@@ -1,4 +1,4 @@
-"""Workshop Manager - Steam Workshop mod management"""
+"""Workshop Manager - Steam Workshop mod management with caching"""
 
 import re
 import logging
@@ -12,11 +12,16 @@ logger = logging.getLogger(__name__)
 
 
 class WorkshopManager:
-    def __init__(self, steamcmd_manager):
+    def __init__(self, steamcmd_manager, mod_cache_manager=None):
         self.steamcmd_manager = steamcmd_manager
         self.config_manager = steamcmd_manager.config_manager
         self.mods_path = self.config_manager.get_mods_path()
         self.mods_path.mkdir(parents=True, exist_ok=True)
+        self.cache_manager = mod_cache_manager
+    
+    def set_cache_manager(self, cache_manager):
+        """Set the cache manager (called after initialization)"""
+        self.cache_manager = cache_manager
     
     def parse_arma3_modlist(self, html_content: str) -> List[str]:
         """
@@ -60,12 +65,23 @@ class WorkshopManager:
             logger.error(f"Failed to parse modlist: {e}")
             return []
     
+    def _get_game_key_from_workshop_id(self, workshop_app_id: str) -> Optional[str]:
+        """Reverse-lookup game key from workshop app ID"""
+        from server import GAME_DEFINITIONS
+        for key, gdef in GAME_DEFINITIONS.items():
+            if gdef.get("workshop_id") == workshop_app_id:
+                return key
+        return None
+    
     async def download_mods(self, workshop_app_id: str, mod_ids: List[str]) -> Dict:
-        """Download multiple workshop mods"""
+        """Download multiple workshop mods with cache support"""
+        game_key = self._get_game_key_from_workshop_id(workshop_app_id)
+        
         results = {
             "success": True,
             "total": len(mod_ids),
             "downloaded": 0,
+            "from_cache": 0,
             "failed": 0,
             "mods": []
         }
@@ -74,6 +90,22 @@ class WorkshopManager:
         game_mods_path.mkdir(parents=True, exist_ok=True)
         
         for mod_id in mod_ids:
+            # Check cache first
+            if self.cache_manager and game_key and self.cache_manager.is_cached(game_key, mod_id):
+                restore = self.cache_manager.restore_from_cache(game_key, mod_id, game_mods_path)
+                if restore.get("success"):
+                    results["from_cache"] += 1
+                    results["downloaded"] += 1
+                    results["mods"].append({
+                        "mod_id": mod_id,
+                        "status": "success",
+                        "from_cache": True,
+                        "path": str(game_mods_path / mod_id)
+                    })
+                    logger.info(f"Restored mod {mod_id} from cache")
+                    continue
+            
+            # Download fresh via SteamCMD
             result = await self.steamcmd_manager.download_workshop_mod(
                 workshop_app_id,
                 mod_id,
@@ -85,13 +117,22 @@ class WorkshopManager:
                 results["mods"].append({
                     "mod_id": mod_id,
                     "status": "success",
+                    "from_cache": False,
                     "path": str(game_mods_path / mod_id)
                 })
+                # Cache the newly downloaded mod
+                if self.cache_manager and game_key:
+                    mod_path = game_mods_path / mod_id
+                    if mod_path.exists():
+                        cache_result = self.cache_manager.cache_mod(game_key, mod_id, mod_path)
+                        if cache_result.get("success"):
+                            logger.info(f"Cached mod {mod_id} ({cache_result.get('size_mb', 0)} MB)")
             else:
                 results["failed"] += 1
                 results["mods"].append({
                     "mod_id": mod_id,
                     "status": "failed",
+                    "from_cache": False,
                     "error": result.get("error", "Unknown error")
                 })
         
@@ -99,8 +140,7 @@ class WorkshopManager:
         return results
     
     async def download_single_mod(self, game: str, mod_id: str) -> Dict:
-        """Download a single workshop mod"""
-        # Get workshop app ID for the game
+        """Download a single workshop mod with cache support"""
         from server import GAME_DEFINITIONS
         
         if game not in GAME_DEFINITIONS:
@@ -113,11 +153,30 @@ class WorkshopManager:
         game_mods_path = self.mods_path / workshop_id
         game_mods_path.mkdir(parents=True, exist_ok=True)
         
-        return await self.steamcmd_manager.download_workshop_mod(
+        # Check cache first
+        if self.cache_manager and self.cache_manager.is_cached(game, mod_id):
+            restore = self.cache_manager.restore_from_cache(game, mod_id, game_mods_path)
+            if restore.get("success"):
+                logger.info(f"Restored single mod {mod_id} from cache for {game}")
+                return {"success": True, "mod_id": mod_id, "from_cache": True}
+        
+        # Download fresh
+        result = await self.steamcmd_manager.download_workshop_mod(
             workshop_id,
             mod_id,
             game_mods_path
         )
+        
+        # Cache on success
+        if result.get("success") and self.cache_manager:
+            mod_path = game_mods_path / mod_id
+            if mod_path.exists():
+                self.cache_manager.cache_mod(game, mod_id, mod_path)
+        
+        if result.get("success"):
+            result["from_cache"] = False
+        
+        return result
     
     def get_installed_mods(self, game: str) -> List[Dict]:
         """Get list of installed mods for a game"""
@@ -141,7 +200,8 @@ class WorkshopManager:
                 mod_info = {
                     "id": mod_dir.name,
                     "path": str(mod_dir),
-                    "size_mb": self._get_dir_size(mod_dir) / (1024 * 1024)
+                    "size_mb": self._get_dir_size(mod_dir) / (1024 * 1024),
+                    "cached": bool(self.cache_manager and self.cache_manager.is_cached(game, mod_dir.name))
                 }
                 
                 # Try to get mod name from meta.cpp or other files
@@ -223,6 +283,8 @@ class WorkshopManager:
             # Determine target path based on game
             if game == "arma3":
                 target = server_path / f"@{mod_id}"
+            elif game == "arma_reforger":
+                target = server_path / "addons" / mod_id
             else:
                 target = server_path / "mods" / mod_id
             

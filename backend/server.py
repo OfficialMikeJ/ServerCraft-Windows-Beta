@@ -180,7 +180,7 @@ try:
     server_manager = ServerManager(config_manager)
     upnp_manager = UPnPManager()
     system_monitor = SystemMonitor()
-    workshop_manager = WorkshopManager(steamcmd_manager)
+    workshop_manager = WorkshopManager(steamcmd_manager, mod_cache_manager)
     
     # Track app launch
     analytics_manager.track_launch()
@@ -1741,17 +1741,111 @@ async def get_upnp_mappings():
 @api_router.get("/workshop/status")
 async def get_workshop_status():
     """Get workshop integration status"""
+    settings = config_manager.get_settings()
+    steam_api_key = settings.get("steam_api_key", "")
     return {
         "enabled": True,
         "steamcmd_installed": steamcmd_manager.is_installed(),
         "logged_in": steamcmd_manager.is_logged_in(),
         "mods_path": str(workshop_manager.mods_path),
+        "has_steam_api_key": bool(steam_api_key),
+        "steam_api_key_masked": ("*" * (len(steam_api_key) - 4) + steam_api_key[-4:]) if len(steam_api_key) > 4 else "",
+        "cache_stats": mod_cache_manager.get_cache_stats(),
         "supported_games": [
             {"key": key, "name": game["name"], "workshop_id": game.get("workshop_id")}
             for key, game in GAME_DEFINITIONS.items()
             if game.get("workshop_id")
         ]
     }
+
+class SteamApiKeyRequest(BaseModel):
+    api_key: str
+
+@api_router.post("/workshop/api-key")
+async def set_steam_api_key(request: SteamApiKeyRequest, token: str = None):
+    """Set the user's Steam Web API key for mod browsing"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    config_manager.update_settings({"steam_api_key": request.api_key})
+    masked = ("*" * (len(request.api_key) - 4) + request.api_key[-4:]) if len(request.api_key) > 4 else ""
+    return {"success": True, "message": "Steam API key saved", "masked": masked}
+
+@api_router.delete("/workshop/api-key")
+async def remove_steam_api_key(token: str = None):
+    """Remove the Steam Web API key"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    config_manager.update_settings({"steam_api_key": ""})
+    return {"success": True, "message": "Steam API key removed"}
+
+@api_router.get("/workshop/search")
+async def search_workshop_mods(game: str, query: str = "", page: int = 1, token: str = None):
+    """Search Steam Workshop mods using the user's API key"""
+    settings = config_manager.get_settings()
+    steam_api_key = settings.get("steam_api_key", "")
+    
+    if not steam_api_key:
+        raise HTTPException(status_code=400, detail="Steam Web API key required. Go to Settings > Workshop to add your key.")
+    
+    if game not in GAME_DEFINITIONS:
+        raise HTTPException(status_code=400, detail="Unsupported game")
+    
+    game_def = GAME_DEFINITIONS[game]
+    workshop_id = game_def.get("workshop_id")
+    if not workshop_id:
+        raise HTTPException(status_code=400, detail="Game does not support workshop")
+    
+    # Use Steam Web API to search
+    import aiohttp
+    try:
+        params = {
+            "key": steam_api_key,
+            "appid": workshop_id,
+            "search_text": query,
+            "return_tags": True,
+            "return_previews": True,
+            "numperpage": 20,
+            "page": page,
+            "query_type": 1,  # RankedByPublicationDate
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                "https://api.steampowered.com/IPublishedFileService/QueryFiles/v1/",
+                params=params,
+                timeout=aiohttp.ClientTimeout(total=15)
+            ) as response:
+                if response.status == 200:
+                    data = await response.json()
+                    files = data.get("response", {}).get("publishedfiledetails", [])
+                    total = data.get("response", {}).get("total", 0)
+                    
+                    mods = []
+                    for f in files:
+                        mods.append({
+                            "id": f.get("publishedfileid"),
+                            "title": f.get("title", "Unknown"),
+                            "description": (f.get("short_description") or f.get("file_description", ""))[:200],
+                            "preview_url": f.get("preview_url", ""),
+                            "subscriptions": f.get("subscriptions", 0),
+                            "favorited": f.get("favorited", 0),
+                            "file_size": f.get("file_size", 0),
+                            "time_updated": f.get("time_updated", 0),
+                            "tags": [t.get("tag", "") for t in f.get("tags", [])],
+                            "cached": mod_cache_manager.is_cached(game, f.get("publishedfileid", ""))
+                        })
+                    
+                    return {"success": True, "mods": mods, "total": total, "page": page}
+                elif response.status == 403:
+                    return {"success": False, "error": "Invalid Steam API key. Please check your key in Settings."}
+                else:
+                    return {"success": False, "error": f"Steam API returned status {response.status}"}
+    except Exception as e:
+        return {"success": False, "error": str(e)}
 
 @api_router.post("/workshop/download")
 async def download_workshop_mods(request: WorkshopModRequest):

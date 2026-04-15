@@ -207,6 +207,7 @@ class ServerManager:
         port = server.get("port", game_def.get("default_port", 27015))
         max_players = server.get("max_players", 32)
         server_name = server.get("name", "ServerCraft Server")
+        query_port = server.get("query_port", port + 1)
         
         if game == "arma3":
             cmd.extend([
@@ -219,12 +220,34 @@ class ServerManager:
                 mods_str = ";".join(server["mods"])
                 cmd.append(f"-mod={mods_str}")
         
-        elif game == "dayz":
+        elif game == "arma_reforger":
+            # Arma Reforger uses Enfusion engine with JSON config
+            cmd.extend([
+                "-config", "ServerConfig.json",
+                f"-maxPlayers {max_players}",
+                f"-bindPort {port}",
+                f"-publicPort {port}",
+                f"-a2sPort {query_port}",
+                "-backendlog",
+                "-nothrow",
+                "-logStats", "5000"
+            ])
+            if server.get("password"):
+                cmd.append(f"-password {server['password']}")
+            if server.get("mods"):
+                # Reforger mods use -addons flag
+                for mod_id in server["mods"]:
+                    cmd.extend(["-addons", mod_id])
+        
+        elif game in ("dayz_vanilla", "dayz_modded"):
             cmd.extend([
                 f"-port={port}",
                 "-config=serverDZ.cfg",
                 "-profiles=profiles"
             ])
+            if game == "dayz_modded" and server.get("mods"):
+                mods_str = ";".join(server["mods"])
+                cmd.append(f"-mod={mods_str}")
         
         elif game == "rust":
             cmd.extend([
@@ -250,7 +273,42 @@ class ServerManager:
         elif game == "squad":
             cmd.extend([
                 f"Port={port}",
-                f"QueryPort={server.get('query_port', port + 1)}"
+                f"QueryPort={query_port}"
+            ])
+        
+        elif game == "ground_branch":
+            cmd.extend([
+                f"-Port={port}",
+                f"-QueryPort={query_port}",
+                f"-MaxPlayers={max_players}"
+            ])
+        
+        elif game == "icarus":
+            cmd.extend([
+                f"-Port={port}",
+                f"-QueryPort={query_port}",
+                f"-SteamServerName=\"{server_name}\""
+            ])
+        
+        elif game == "no_one_survived":
+            cmd.extend([
+                f"-port={port}",
+                f"-queryport={query_port}",
+                f"-maxplayers={max_players}"
+            ])
+        
+        elif game == "fivem":
+            # FiveM uses server.cfg, not command line params for most settings
+            cmd.extend([
+                "+exec", "server.cfg"
+            ])
+        
+        elif game == "source_engine":
+            cmd.extend([
+                "-console",
+                f"-port {port}",
+                f"+maxplayers {max_players}",
+                f"+hostname \"{server_name}\""
             ])
         
         # Add custom parameters

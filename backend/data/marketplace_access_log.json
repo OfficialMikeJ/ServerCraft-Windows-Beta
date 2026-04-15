@@ -261,6 +261,42 @@
       "geo_location": {},
       "action": "browse",
       "timestamp": "2026-04-15T17:21:09.508847+00:00"
+    },
+    {
+      "id": "dd94e503-83d7-479c-9685-c68346bfe25f",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {
+        "ip": "10.208.134.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T18:11:36.134056+00:00"
+    },
+    {
+      "id": "da7b47df-25f2-4944-a608-30ec98246627",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {
+        "ip": "10.208.134.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T18:11:36.188624+00:00"
+    },
+    {
+      "id": "407b4586-f89a-4702-9abe-36acb2ec9e9d",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {},
+      "action": "browse",
+      "timestamp": "2026-04-15T18:11:36.295310+00:00"
+    },
+    {
+      "id": "1fb19a92-77a1-4a3c-98be-d8015ba02ed5",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {},
+      "action": "browse",
+      "timestamp": "2026-04-15T18:11:36.357781+00:00"
     }
   ]
 }

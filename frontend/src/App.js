@@ -2587,16 +2587,30 @@ function WorkshopView({ games, showToast }) {
     const [installedMods, setInstalledMods] = useState({});
     const [workshopStatus, setWorkshopStatus] = useState(null);
     const [loadingMods, setLoadingMods] = useState(false);
+    
+    // API key & search state
+    const [steamApiKey, setSteamApiKey] = useState('');
+    const [hasSteamApiKey, setHasSteamApiKey] = useState(false);
+    const [apiKeyMasked, setApiKeyMasked] = useState('');
+    const [showApiKeyInput, setShowApiKeyInput] = useState(false);
+    const [searchResults, setSearchResults] = useState([]);
+    const [searchLoading, setSearchLoading] = useState(false);
+    const [searchTotal, setSearchTotal] = useState(0);
+    const [cacheStats, setCacheStats] = useState(null);
+    
+    const getToken = () => localStorage.getItem('servercraft_auth_token') || '';
 
     // Load workshop status and installed mods on mount
     useEffect(() => {
         const loadWorkshopData = async () => {
             try {
-                // Load workshop status
                 const statusRes = await fetch(`${API_BASE}/api/workshop/status`);
                 if (statusRes.ok) {
                     const status = await statusRes.json();
                     setWorkshopStatus(status);
+                    setHasSteamApiKey(status.has_steam_api_key || false);
+                    setApiKeyMasked(status.steam_api_key_masked || '');
+                    setCacheStats(status.cache_stats || null);
                 }
             } catch (error) {
                 console.log('Failed to load workshop status');
@@ -2700,10 +2714,72 @@ function WorkshopView({ games, showToast }) {
                 body: JSON.stringify({ game: 'arma3', mod_ids: parsedMods })
             });
             const data = await response.json();
-            showToast(`Downloaded ${data.downloaded}/${data.total} mods`, data.success ? 'success' : 'error');
+            const cacheInfo = data.from_cache ? ` (${data.from_cache} from cache)` : '';
+            showToast(`Downloaded ${data.downloaded}/${data.total} mods${cacheInfo}`, data.success ? 'success' : 'error');
         } catch (error) {
             showToast('Failed to download mods', 'error');
         }
+    };
+    
+    const saveSteamApiKey = async () => {
+        if (!steamApiKey.trim()) { showToast('Please enter your Steam API key', 'error'); return; }
+        try {
+            const res = await fetch(`${API_BASE}/api/workshop/api-key?token=${getToken()}`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ api_key: steamApiKey })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setHasSteamApiKey(true);
+                setApiKeyMasked(data.masked);
+                setSteamApiKey('');
+                setShowApiKeyInput(false);
+                showToast('Steam API key saved!', 'success');
+            }
+        } catch (e) { showToast('Failed to save key', 'error'); }
+    };
+    
+    const removeSteamApiKey = async () => {
+        try {
+            await fetch(`${API_BASE}/api/workshop/api-key?token=${getToken()}`, { method: 'DELETE' });
+            setHasSteamApiKey(false);
+            setApiKeyMasked('');
+            setSearchResults([]);
+            showToast('Steam API key removed', 'info');
+        } catch (e) { showToast('Failed to remove key', 'error'); }
+    };
+    
+    const searchWorkshopMods = async (page = 1) => {
+        if (!selectedGame) { showToast('Select a game first', 'error'); return; }
+        if (!hasSteamApiKey) { showToast('Steam API key required. Add your key above.', 'error'); return; }
+        setSearchLoading(true);
+        try {
+            const res = await fetch(`${API_BASE}/api/workshop/search?game=${selectedGame}&query=${encodeURIComponent(searchQuery)}&page=${page}&token=${getToken()}`);
+            const data = await res.json();
+            if (data.success) {
+                setSearchResults(data.mods || []);
+                setSearchTotal(data.total || 0);
+            } else {
+                showToast(data.error || 'Search failed', 'error');
+            }
+        } catch (e) { showToast('Search failed', 'error'); }
+        setSearchLoading(false);
+    };
+    
+    const downloadSearchMod = async (modIdToDownload) => {
+        if (!selectedGame) return;
+        showToast('Downloading mod...', 'info');
+        try {
+            const res = await fetch(`${API_BASE}/api/workshop/download`, {
+                method: 'POST', headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ game: selectedGame, mod_ids: [modIdToDownload] })
+            });
+            const data = await res.json();
+            if (data.success || data.downloaded > 0) {
+                const fromCache = data.from_cache > 0 ? ' (from cache!)' : '';
+                showToast(`Mod downloaded successfully${fromCache}`, 'success');
+            } else { showToast('Download failed', 'error'); }
+        } catch (e) { showToast('Download failed', 'error'); }
     };
 
     // Get games that have workshop support
@@ -2753,19 +2829,56 @@ function WorkshopView({ games, showToast }) {
                                 <h3><i className="fas fa-globe"></i> Browse Steam Workshop</h3>
                             </div>
                             <div className="card-body">
-                                <div className="workshop-notice">
-                                    <span className="notice-icon"><i className="fas fa-info-circle"></i></span>
-                                    <div>
-                                        <p><strong>Steam Workshop Integration</strong></p>
-                                        <p>Browse and download mods for any supported game. You don&apos;t need to own the game to download server mods - as long as the game allows anonymous downloads.</p>
+                                {/* Steam API Key Section */}
+                                <div style={{ padding: '14px 16px', background: hasSteamApiKey ? 'rgba(34,197,94,0.06)' : 'rgba(245,158,11,0.08)', borderRadius: '8px', border: `1px solid ${hasSteamApiKey ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}`, marginBottom: '16px' }} data-testid="steam-api-key-section">
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                            <i className={`fas ${hasSteamApiKey ? 'fa-check-circle' : 'fa-key'}`} style={{ color: hasSteamApiKey ? '#22c55e' : '#f59e0b', fontSize: '18px' }}></i>
+                                            <div>
+                                                <strong style={{ color: hasSteamApiKey ? '#22c55e' : '#f59e0b' }}>
+                                                    {hasSteamApiKey ? 'Steam API Key Active' : 'Steam Web API Key Required'}
+                                                </strong>
+                                                <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                    {hasSteamApiKey 
+                                                        ? `Key: ${apiKeyMasked} - You can now search and browse mods directly.`
+                                                        : <>Get your free key at <a href="https://steamcommunity.com/dev/apikey" target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6' }}>steamcommunity.com/dev/apikey</a></>
+                                                    }
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '6px' }}>
+                                            {hasSteamApiKey ? (
+                                                <>
+                                                    <button className="btn btn-gray btn-sm" onClick={() => setShowApiKeyInput(!showApiKeyInput)}><i className="fas fa-edit"></i> Change</button>
+                                                    <button className="btn btn-danger btn-sm" onClick={removeSteamApiKey}><i className="fas fa-trash"></i></button>
+                                                </>
+                                            ) : (
+                                                <button className="btn btn-primary btn-sm" onClick={() => setShowApiKeyInput(true)} data-testid="add-api-key-btn"><i className="fas fa-plus"></i> Add Key</button>
+                                            )}
+                                        </div>
                                     </div>
+                                    {showApiKeyInput && (
+                                        <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                                            <input type="password" className="form-input" placeholder="Paste your Steam Web API key here" value={steamApiKey} onChange={e => setSteamApiKey(e.target.value)} style={{ flex: 1 }} data-testid="steam-api-key-input" />
+                                            <button className="btn btn-green btn-sm" onClick={saveSteamApiKey} data-testid="save-api-key-btn"><i className="fas fa-save"></i> Save</button>
+                                            <button className="btn btn-gray btn-sm" onClick={() => setShowApiKeyInput(false)}><i className="fas fa-times"></i></button>
+                                        </div>
+                                    )}
                                 </div>
+                                
+                                {/* Cache Stats */}
+                                {cacheStats && cacheStats.total_cached > 0 && (
+                                    <div style={{ padding: '10px 14px', background: 'rgba(59,130,246,0.06)', borderRadius: '8px', border: '1px solid rgba(59,130,246,0.15)', marginBottom: '16px', fontSize: '13px' }}>
+                                        <i className="fas fa-database" style={{ color: '#3b82f6', marginRight: '8px' }}></i>
+                                        <strong>Mod Cache:</strong> {cacheStats.total_cached} mods cached ({cacheStats.total_size_mb} MB) | {cacheStats.cache_hits} cache hits
+                                    </div>
+                                )}
                                 
                                 <div className="workshop-game-select">
                                     <label>Select Game:</label>
                                     <select 
                                         value={selectedGame} 
-                                        onChange={(e) => setSelectedGame(e.target.value)}
+                                        onChange={(e) => { setSelectedGame(e.target.value); setSearchResults([]); }}
                                         className="form-select"
                                     >
                                         <option value="">-- Select a game --</option>
@@ -2799,22 +2912,50 @@ function WorkshopView({ games, showToast }) {
                                     </div>
                                 )}
 
-                                <div className="workshop-search">
+                                <div className="workshop-search" style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
                                     <input 
                                         type="text" 
-                                        placeholder="Search mods... (Coming Soon)" 
+                                        placeholder={hasSteamApiKey ? "Search mods by name..." : "Add Steam API key to enable search"} 
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && searchWorkshopMods()}
                                         className="form-input"
-                                        disabled
+                                        disabled={!hasSteamApiKey}
+                                        data-testid="workshop-search-input"
+                                        style={{ flex: 1 }}
                                     />
-                                    <button className="btn btn-blue" disabled>Search</button>
+                                    <button className="btn btn-primary" onClick={() => searchWorkshopMods()} disabled={!hasSteamApiKey || !selectedGame || searchLoading} data-testid="workshop-search-btn">
+                                        <i className={`fas ${searchLoading ? 'fa-spinner fa-spin' : 'fa-search'}`}></i> Search
+                                    </button>
                                 </div>
-
-                                <div className="coming-soon-notice">
-                                    <span><i className="fas fa-hard-hat"></i></span>
-                                    <p>Full workshop browsing with mod previews, ratings, and one-click install coming in a future update!</p>
-                                </div>
+                                
+                                {/* Search Results */}
+                                {searchResults.length > 0 && (
+                                    <div style={{ marginTop: '16px' }}>
+                                        <h4 style={{ margin: '0 0 10px 0' }}><i className="fas fa-search"></i> Results ({searchTotal} total)</h4>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                            {searchResults.map(mod => (
+                                                <div key={mod.id} data-testid={`search-result-${mod.id}`} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                                    {mod.preview_url && <img src={mod.preview_url} alt="" style={{ width: '64px', height: '64px', borderRadius: '6px', objectFit: 'cover' }} />}
+                                                    <div style={{ flex: 1 }}>
+                                                        <strong>{mod.title}</strong>
+                                                        {mod.cached && <span style={{ marginLeft: '8px', padding: '1px 6px', borderRadius: '4px', fontSize: '10px', background: 'rgba(34,197,94,0.15)', color: '#22c55e' }}>CACHED</span>}
+                                                        <p style={{ margin: '2px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>{mod.description}</p>
+                                                        <div style={{ display: 'flex', gap: '12px', marginTop: '4px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                                            <span><i className="fas fa-users"></i> {mod.subscriptions?.toLocaleString()}</span>
+                                                            <span><i className="fas fa-star"></i> {mod.favorited?.toLocaleString()}</span>
+                                                            {mod.file_size > 0 && <span><i className="fas fa-file"></i> {(mod.file_size / 1024 / 1024).toFixed(1)} MB</span>}
+                                                            {mod.tags?.slice(0, 3).map((t, i) => <span key={i} style={{ color: '#6b7280' }}>#{t}</span>)}
+                                                        </div>
+                                                    </div>
+                                                    <button className="btn btn-green btn-sm" onClick={() => downloadSearchMod(mod.id)} data-testid={`download-mod-${mod.id}`}>
+                                                        <i className="fas fa-download"></i> {mod.cached ? 'Restore' : 'Download'}
+                                                    </button>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </div>

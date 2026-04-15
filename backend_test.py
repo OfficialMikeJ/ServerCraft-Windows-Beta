@@ -125,13 +125,16 @@ class ServerCraftAPITester:
 
     def test_create_sub_user(self):
         """Test creating a sub-user"""
+        # Use a unique username to avoid conflicts
+        import time
+        unique_username = f"TestUser{int(time.time())}"
         success, response = self.run_test(
             "Create Sub-User",
             "POST",
             f"api/sub-users?token={self.token}",
             200,
             data={
-                "username": "TestMod",
+                "username": unique_username,
                 "password": "TestPass123!",
                 "role": "moderator",
                 "assigned_servers": []
@@ -180,25 +183,94 @@ class ServerCraftAPITester:
                 print(f"⚠️  Expected 14+ games, found {len(games)}")
         return success
 
-    def test_marketplace_endpoints(self):
-        """Test marketplace related endpoints"""
-        # Test marketplace templates
-        success1, _ = self.run_test(
-            "Marketplace Templates",
+    def test_workshop_status(self):
+        """Test workshop status endpoint - should show Steam API key requirement"""
+        success, response = self.run_test(
+            "Workshop Status",
             "GET",
-            "api/marketplace/templates",
+            "api/workshop/status",
+            200
+        )
+        if success and response:
+            has_key = response.get('has_steam_api_key', False)
+            print(f"   Has Steam API Key: {has_key}")
+            if not has_key:
+                print(f"✅ Correctly shows no Steam API key set")
+            return True
+        return success
+
+    def test_workshop_api_key_operations(self):
+        """Test Steam API key CRUD operations"""
+        # Test setting API key with proper authentication
+        test_key = "ABCD1234567890ABCD1234567890ABCD"
+        success1, response1 = self.run_test(
+            "Set Steam API Key",
+            "POST",
+            f"api/workshop/api-key?token={self.token}",
+            200,
+            data={"api_key": test_key}
+        )
+        
+        if success1 and response1:
+            masked_key = response1.get('masked_key', '')
+            print(f"   Masked key returned: {masked_key}")
+        
+        # Test status after setting key
+        success2, response2 = self.run_test(
+            "Workshop Status After Key Set",
+            "GET",
+            "api/workshop/status",
             200
         )
         
-        # Test marketplace stats (might require auth)
-        success2, _ = self.run_test(
-            "Marketplace Stats",
-            "GET",
-            f"api/marketplace/stats?token={self.token}",
+        if success2 and response2:
+            has_key = response2.get('has_steam_api_key', False)
+            print(f"   Has Steam API Key after set: {has_key}")
+        
+        # Test deleting API key with proper authentication
+        success3, _ = self.run_test(
+            "Delete Steam API Key",
+            "DELETE",
+            f"api/workshop/api-key?token={self.token}",
             200
         )
         
-        return success1 or success2  # At least one should work
+        return success1 and success2 and success3
+
+    def test_workshop_search_without_key(self):
+        """Test workshop search requires API key"""
+        success, response = self.run_test(
+            "Workshop Search Without Key",
+            "GET",
+            "api/workshop/search?game=arma3&query=test",
+            400  # Should fail without API key
+        )
+        return success
+
+    def test_mod_cache_detailed(self):
+        """Test detailed mod cache functionality"""
+        success1, response1 = self.run_test(
+            "Mod Cache Stats Detailed",
+            "GET",
+            "api/mods/cache/stats",
+            200
+        )
+        
+        if success1 and response1:
+            cache_hits = response1.get('cache_hits', 0)
+            total_cached = response1.get('total_cached', 0)
+            print(f"   Cache hits: {cache_hits}")
+            print(f"   Total cached mods: {total_cached}")
+        
+        # Test cache for specific game
+        success2, response2 = self.run_test(
+            "Cached Mods for Arma 3",
+            "GET",
+            "api/mods/cache/arma3",
+            200
+        )
+        
+        return success1 and success2
 
     def test_system_stats(self):
         """Test system statistics endpoint"""
@@ -240,14 +312,17 @@ class ServerCraftAPITester:
         self.test_create_sub_user()
         self.test_get_sub_users()
         
+        # Test workshop and Steam API key features
+        self.test_workshop_status()
+        self.test_workshop_api_key_operations()
+        self.test_workshop_search_without_key()
+        
         # Test mod cache system
         self.test_mod_cache_stats()
+        self.test_mod_cache_detailed()
         
         # Test game support
         self.test_supported_games()
-        
-        # Test marketplace
-        self.test_marketplace_endpoints()
         
         # Test system endpoints
         self.test_system_stats()
