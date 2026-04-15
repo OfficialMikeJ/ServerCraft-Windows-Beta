@@ -9,6 +9,16 @@
       "created_at": "2026-04-15T17:19:09.840924+00:00",
       "last_login": null,
       "active": true
+    },
+    {
+      "id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "password_hash": "7233e009f6acaa63d3b18c94287b8d951f65d03da871e4ae6df1f57ed8cef092",
+      "role": "moderator",
+      "assigned_servers": [],
+      "created_at": "2026-04-15T17:25:27.341902+00:00",
+      "last_login": null,
+      "active": true
     }
   ],
   "enabled": true

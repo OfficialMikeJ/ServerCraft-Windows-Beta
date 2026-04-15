@@ -92,7 +92,7 @@ function CustomDomainCard({ showToast }) {
             </div>
             <div className="card-body">
                 <p className="setting-description">
-                    Configure your own custom domain instead of using DuckDNS. Supports both Dynamic and Static IP setups.
+                    Configure your own custom domain for your ServerCraft panel. Use Nginx Proxy Manager for SSL and reverse proxy.
                 </p>
                 
                 {/* Domain Input */}
@@ -131,7 +131,7 @@ function CustomDomainCard({ showToast }) {
                                 checked={isDynamicIP}
                                 onChange={() => setIsDynamicIP(true)}
                             />
-                            <span>Dynamic IP (DuckDNS CNAME)</span>
+                            <span>Dynamic IP (DDNS/CNAME)</span>
                         </label>
                         <label className="radio-label">
                             <input
@@ -157,18 +157,19 @@ function CustomDomainCard({ showToast }) {
                         <h4><i className="fas fa-info-circle"></i> Setup Instructions</h4>
                         {isDynamicIP ? (
                             <>
-                                <h5>Dynamic DNS with DuckDNS:</h5>
+                                <h5>Dynamic DNS with Nginx Proxy Manager:</h5>
                                 <ol>
-                                    <li>Create a DuckDNS subdomain at <a href="https://www.duckdns.org" target="_blank" rel="noreferrer">duckdns.org</a></li>
+                                    <li>Set up Nginx Proxy Manager (see Settings &gt; NPM Integration)</li>
                                     <li>Go to your domain's DNS settings (e.g., Namecheap, GoDaddy, Cloudflare)</li>
                                     <li>Add a <strong>CNAME record</strong>:
                                         <ul>
                                             <li><strong>Host:</strong> {subdomain || '@'}</li>
-                                            <li><strong>Target:</strong> yourcustom.duckdns.org</li>
+                                            <li><strong>Target:</strong> your-server-ip or DDNS hostname</li>
                                             <li><strong>TTL:</strong> 1 minute (60 seconds)</li>
                                         </ul>
                                     </li>
-                                    <li>Save changes and wait for DNS propagation (usually 5-30 minutes)</li>
+                                    <li>Create a proxy host in NPM pointing to ServerCraft port 8001</li>
+                                    <li>Enable SSL with Let's Encrypt for HTTPS</li>
                                 </ol>
                             </>
                         ) : (

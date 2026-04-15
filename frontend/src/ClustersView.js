@@ -388,9 +388,6 @@ function ClustersView({ showToast }) {
                                     <p>{selectedCluster.description || 'No description'}</p>
                                 </div>
                                 <div className="cluster-actions">
-                                    <button className="btn btn-secondary" onClick={() => setShowDuckDNS(true)}>
-                                        <i className="fas fa-globe"></i> DuckDNS
-                                    </button>
                                     <button className="btn btn-danger" onClick={() => deleteCluster(selectedCluster.id)}>
                                         <i className="fas fa-trash"></i>
                                     </button>

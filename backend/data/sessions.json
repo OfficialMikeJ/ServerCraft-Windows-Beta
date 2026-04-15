@@ -341,5 +341,19 @@
     "expires_at": "2026-04-15T17:37:44.593961+00:00",
     "remember_me": false,
     "last_activity": "2026-04-15T17:22:44.594074+00:00"
+  },
+  "eHdGIy673GR-UbyrpzSJWp5fDFmASa7k542fjLj5hvs": {
+    "username": "Admin",
+    "created_at": "2026-04-15T17:25:27.216222+00:00",
+    "expires_at": "2026-04-15T17:40:27.458026+00:00",
+    "remember_me": false,
+    "last_activity": "2026-04-15T17:25:27.458026+00:00"
+  },
+  "aYIn-VXZmiVqx7zVGBwH1tDpmYkUXBYn-gLrXCcdEHg": {
+    "username": "Admin",
+    "created_at": "2026-04-15T17:25:44.172049+00:00",
+    "expires_at": "2026-04-15T17:40:47.273826+00:00",
+    "remember_me": false,
+    "last_activity": "2026-04-15T17:25:47.273826+00:00"
   }
 }
