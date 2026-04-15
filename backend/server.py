@@ -197,6 +197,18 @@ APP_VERSION = "2026.3.0-BETA"
 APP_NAME = "ServerCraft - Windows Edition"
 COPYRIGHT = "© 2026 TierOne Development"
 
+# GitHub releases URL for self-update
+GITHUB_RELEASES_URL = "https://api.github.com/repos/OfficialMikeJ/ServerCraft-Windows-Beta/releases/latest"
+GITHUB_RELEASES_PAGE = "https://github.com/OfficialMikeJ/ServerCraft-Windows-Beta/releases"
+
+# Update channel configuration
+UPDATE_CONFIG = {
+    "check_interval_seconds": 3600,  # Check every hour
+    "auto_check_enabled": True,
+    "release_goal": "2026.12.20",  # December 20th 2026 - last 2026 release
+    "v1_target": "December 2026"
+}
+
 # Version History
 VERSION_HISTORY = [
     {
@@ -1548,6 +1560,298 @@ async def marketplace_version_check(template_id: str = None, min_version: str = 
     return result
 
 # ==================== END MARKETPLACE EXTERNAL AUTH ====================
+
+# ==================== SERVERCRAFT SELF-UPDATE SYSTEM ====================
+
+@api_router.get("/updates/check")
+async def check_for_updates():
+    """Check GitHub releases for a newer version of ServerCraft"""
+    import aiohttp
+    
+    current_version = APP_VERSION
+    
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(
+                GITHUB_RELEASES_URL,
+                headers={"Accept": "application/vnd.github.v3+json", "User-Agent": "ServerCraft-UpdateChecker"},
+                timeout=aiohttp.ClientTimeout(total=10)
+            ) as response:
+                if response.status == 200:
+                    release = await response.json()
+                    latest_tag = release.get("tag_name", "").lstrip("v").strip()
+                    release_name = release.get("name", latest_tag)
+                    published_at = release.get("published_at", "")
+                    body = release.get("body", "")
+                    html_url = release.get("html_url", GITHUB_RELEASES_PAGE)
+                    prerelease = release.get("prerelease", False)
+                    
+                    # Parse assets for download links
+                    assets = []
+                    for asset in release.get("assets", []):
+                        assets.append({
+                            "name": asset.get("name"),
+                            "download_url": asset.get("browser_download_url"),
+                            "size_mb": round(asset.get("size", 0) / (1024 * 1024), 1),
+                            "download_count": asset.get("download_count", 0)
+                        })
+                    
+                    # Determine update type
+                    update_type = "hotfix"
+                    if body:
+                        body_lower = body.lower()
+                        if "major" in body_lower or "big update" in body_lower:
+                            update_type = "major"
+                        elif "feature" in body_lower:
+                            update_type = "feature"
+                    if prerelease:
+                        update_type = "beta"
+                    
+                    # Compare versions
+                    def parse_ver(v):
+                        import re
+                        clean = re.sub(r'[-.]?[A-Za-z].*$', '', v.strip())
+                        parts = []
+                        for p in clean.split('.'):
+                            try: parts.append(int(p))
+                            except: parts.append(0)
+                        return tuple(parts)
+                    
+                    is_newer = False
+                    try:
+                        is_newer = parse_ver(latest_tag) > parse_ver(current_version)
+                    except Exception:
+                        is_newer = latest_tag != current_version
+                    
+                    return {
+                        "update_available": is_newer,
+                        "current_version": current_version,
+                        "latest_version": latest_tag,
+                        "release_name": release_name,
+                        "update_type": update_type,
+                        "published_at": published_at,
+                        "changelog": body,
+                        "html_url": html_url,
+                        "assets": assets,
+                        "prerelease": prerelease,
+                        "releases_page": GITHUB_RELEASES_PAGE
+                    }
+                elif response.status == 404:
+                    return {
+                        "update_available": False,
+                        "current_version": current_version,
+                        "message": "No releases found",
+                        "releases_page": GITHUB_RELEASES_PAGE
+                    }
+                else:
+                    return {
+                        "update_available": False,
+                        "current_version": current_version,
+                        "error": f"GitHub API returned {response.status}"
+                    }
+    except Exception as e:
+        return {
+            "update_available": False,
+            "current_version": current_version,
+            "error": f"Update check failed: {str(e)}",
+            "releases_page": GITHUB_RELEASES_PAGE
+        }
+
+@api_router.get("/updates/config")
+async def get_update_config():
+    """Get update configuration"""
+    return {
+        "current_version": APP_VERSION,
+        "config": UPDATE_CONFIG,
+        "releases_page": GITHUB_RELEASES_PAGE
+    }
+
+@api_router.post("/updates/dismiss")
+async def dismiss_update(version: str = None):
+    """Dismiss an update notification (Update Later)"""
+    settings = config_manager.get_settings()
+    dismissed = settings.get("dismissed_updates", [])
+    if version and version not in dismissed:
+        dismissed.append(version)
+    config_manager.update_settings({"dismissed_updates": dismissed})
+    return {"success": True, "dismissed": version}
+
+@api_router.get("/updates/dismissed")
+async def get_dismissed_updates():
+    """Get list of dismissed update versions"""
+    settings = config_manager.get_settings()
+    return {"dismissed": settings.get("dismissed_updates", [])}
+
+# ==================== INSTALLED TEMPLATES TRACKER ====================
+
+@api_router.get("/templates/installed")
+async def get_installed_templates(token: str = None):
+    """Get list of installed templates with update check"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        # Try sub-user
+        if token:
+            sub = sub_user_manager.validate_session(token)
+            if not sub:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    settings = config_manager.get_settings()
+    installed = settings.get("installed_templates", [])
+    
+    # Check each installed template for updates
+    templates_data = marketplace_manager._load_json(marketplace_manager.templates_file)
+    all_templates = templates_data.get("templates", [])
+    
+    result = []
+    for inst in installed:
+        template_id = inst.get("template_id")
+        installed_version = inst.get("version")
+        
+        # Find current marketplace version
+        update_available = False
+        latest_version = installed_version
+        template_name = inst.get("name", "Unknown")
+        
+        for t in all_templates:
+            if t.get("id") == template_id:
+                latest_version = t.get("version_id") or t.get("version", installed_version)
+                template_name = t.get("name", template_name)
+                
+                # Compare versions
+                if latest_version != installed_version:
+                    update_available = True
+                break
+        
+        result.append({
+            "template_id": template_id,
+            "name": template_name,
+            "installed_version": installed_version,
+            "latest_version": latest_version,
+            "update_available": update_available,
+            "installed_at": inst.get("installed_at"),
+            "game": inst.get("game", "")
+        })
+    
+    updates_count = sum(1 for r in result if r["update_available"])
+    
+    return {
+        "installed": result,
+        "total": len(result),
+        "updates_available": updates_count
+    }
+
+@api_router.post("/templates/installed/track")
+async def track_installed_template(request: Request, token: str = None):
+    """Track a newly installed template"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        if token:
+            sub = sub_user_manager.validate_session(token)
+            if not sub:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    data = await request.json()
+    template_id = data.get("template_id")
+    version = data.get("version")
+    name = data.get("name")
+    game = data.get("game", "")
+    
+    if not template_id or not version:
+        raise HTTPException(status_code=400, detail="template_id and version required")
+    
+    settings = config_manager.get_settings()
+    installed = settings.get("installed_templates", [])
+    
+    # Update or add
+    found = False
+    for i, inst in enumerate(installed):
+        if inst.get("template_id") == template_id:
+            installed[i]["version"] = version
+            installed[i]["updated_at"] = datetime.now(timezone.utc).isoformat()
+            found = True
+            break
+    
+    if not found:
+        installed.append({
+            "template_id": template_id,
+            "name": name,
+            "version": version,
+            "game": game,
+            "installed_at": datetime.now(timezone.utc).isoformat()
+        })
+    
+    config_manager.update_settings({"installed_templates": installed})
+    return {"success": True, "tracked": template_id}
+
+@api_router.post("/templates/installed/{template_id}/update")
+async def update_installed_template(template_id: str, token: str = None):
+    """One-click update an installed template to the latest version"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        if token:
+            sub = sub_user_manager.validate_session(token)
+            if not sub:
+                raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    # Find the template in marketplace
+    templates_data = marketplace_manager._load_json(marketplace_manager.templates_file)
+    
+    for template in templates_data.get("templates", []):
+        if template.get("id") == template_id:
+            new_version = template.get("version_id") or template.get("version")
+            
+            # Version check
+            compat = marketplace_manager.check_version_compatibility(
+                template.get("min_servercraft_version", ""), APP_VERSION
+            )
+            if not compat.get("compatible", True):
+                return {
+                    "success": False,
+                    "error": "version_mismatch",
+                    "message": compat.get("message"),
+                    "update_url": compat.get("update_url")
+                }
+            
+            # Update the installed record
+            settings = config_manager.get_settings()
+            installed = settings.get("installed_templates", [])
+            for i, inst in enumerate(installed):
+                if inst.get("template_id") == template_id:
+                    installed[i]["version"] = new_version
+                    installed[i]["updated_at"] = datetime.now(timezone.utc).isoformat()
+                    break
+            config_manager.update_settings({"installed_templates": installed})
+            
+            # Increment download count
+            marketplace_manager.increment_download_count(template_id)
+            
+            return {
+                "success": True,
+                "template_id": template_id,
+                "new_version": new_version,
+                "template": {
+                    "name": template.get("name"),
+                    "config": template.get("config"),
+                    "version": new_version
+                }
+            }
+    
+    raise HTTPException(status_code=404, detail="Template not found")
+
+@api_router.delete("/templates/installed/{template_id}")
+async def remove_installed_template(template_id: str, token: str = None):
+    """Remove a template from installed list"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    settings = config_manager.get_settings()
+    installed = settings.get("installed_templates", [])
+    installed = [i for i in installed if i.get("template_id") != template_id]
+    config_manager.update_settings({"installed_templates": installed})
+    return {"success": True}
+
+# ==================== END SELF-UPDATE & TEMPLATE TRACKER ====================
 
 # ==================== ANALYTICS & FEEDBACK ROUTES ====================
 

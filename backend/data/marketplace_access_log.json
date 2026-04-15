@@ -421,6 +421,88 @@
       },
       "action": "eligibility_check",
       "timestamp": "2026-04-15T20:05:02.006970+00:00"
+    },
+    {
+      "id": "3b85020b-f30a-4756-b8f2-fa1e602d5ace",
+      "username": "Admin",
+      "ip_address": "10.208.133.66",
+      "geo_location": {
+        "ip": "10.208.133.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T20:27:28.596611+00:00"
+    },
+    {
+      "id": "0327b3f7-b97f-443c-a3d7-13ebbc9eab7f",
+      "username": "Admin",
+      "ip_address": "10.208.133.66",
+      "geo_location": {
+        "ip": "10.208.133.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T20:27:28.641430+00:00"
+    },
+    {
+      "id": "50cfc08e-c645-4567-be7c-4763509c1dac",
+      "username": "Admin",
+      "ip_address": "10.208.133.66",
+      "geo_location": {},
+      "action": "browse",
+      "timestamp": "2026-04-15T20:27:28.736824+00:00"
+    },
+    {
+      "id": "c14be130-7cdd-44f8-94ff-657a52f5e99b",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {},
+      "action": "browse",
+      "timestamp": "2026-04-15T20:27:28.824216+00:00"
+    },
+    {
+      "id": "0fba182a-63be-494f-ae34-1b6c253071fd",
+      "username": "ModUser",
+      "ip_address": "10.208.134.66",
+      "geo_location": {
+        "ip": "10.208.134.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T20:29:45.137187+00:00"
+    },
+    {
+      "id": "8f59dc49-ba09-44c0-8490-f63272f4101a",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {
+        "ip": "10.208.134.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T20:32:10.178046+00:00"
+    },
+    {
+      "id": "b693a9fc-1f16-445e-8139-0bd9fe43a256",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {
+        "ip": "10.208.134.66"
+      },
+      "action": "eligibility_check",
+      "timestamp": "2026-04-15T20:32:10.237381+00:00"
+    },
+    {
+      "id": "d599651a-56bd-4d74-8a35-2dc3e7cf3cd1",
+      "username": "Admin",
+      "ip_address": "10.208.133.66",
+      "geo_location": {},
+      "action": "browse",
+      "timestamp": "2026-04-15T20:32:10.422691+00:00"
+    },
+    {
+      "id": "f8f1360a-37dd-4000-947a-5e42eb0159db",
+      "username": "Admin",
+      "ip_address": "10.208.134.66",
+      "geo_location": {},
+      "action": "browse",
+      "timestamp": "2026-04-15T20:32:10.538549+00:00"
     }
   ]
 }

@@ -104,6 +104,13 @@
       "role": "moderator",
       "created_at": "2026-04-15T20:04:53.917014+00:00",
       "expires_at": "2026-04-15T21:05:02.006612+00:00"
+    },
+    "pJsH6r_vSP9FH5KezrFeGqkqTYZ9CZcfw6yKV4KpwRI": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T20:29:43.906544+00:00",
+      "expires_at": "2026-04-15T21:29:45.136812+00:00"
     }
   }
 }

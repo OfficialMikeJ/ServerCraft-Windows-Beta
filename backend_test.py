@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-ServerCraft Iteration 4 Backend API Testing
-Tests marketplace features, sub-user auth, version checking, and TeamSpeak 3 integration
+ServerCraft Iteration 5 Backend API Testing
+Tests self-update system, installed templates tracker, and previous features
 """
 
 import requests
@@ -234,8 +234,194 @@ class ServerCraftAPITester:
                 return False
         return False
 
+    # ==================== ITERATION 5 NEW TESTS ====================
+    
+    def test_updates_check(self):
+        """Test self-update system - check for updates"""
+        success, response = self.run_test(
+            "Updates Check",
+            "GET",
+            "api/updates/check",
+            200
+        )
+        
+        if success:
+            # Check required fields
+            required_fields = ["current_version", "update_available"]
+            if all(field in response for field in required_fields):
+                print("✅ Updates check API working correctly")
+                print(f"   Current Version: {response.get('current_version')}")
+                print(f"   Update Available: {response.get('update_available')}")
+                if response.get("update_available"):
+                    print(f"   Latest Version: {response.get('latest_version', 'N/A')}")
+                return True
+            else:
+                print(f"❌ Missing required fields. Expected: {required_fields}, Got: {list(response.keys())}")
+                return False
+        return False
+
+    def test_updates_config(self):
+        """Test update configuration endpoint"""
+        success, response = self.run_test(
+            "Updates Config",
+            "GET",
+            "api/updates/config",
+            200
+        )
+        
+        if success:
+            # Check required fields
+            required_fields = ["current_version", "config"]
+            if all(field in response for field in required_fields):
+                config = response.get("config", {})
+                if "release_goal" in config:
+                    print("✅ Updates config API working correctly")
+                    print(f"   Current Version: {response.get('current_version')}")
+                    print(f"   Release Goal: {config.get('release_goal')}")
+                    return True
+                else:
+                    print(f"❌ Config missing release_goal: {config}")
+                    return False
+            else:
+                print(f"❌ Missing required fields. Expected: {required_fields}, Got: {list(response.keys())}")
+                return False
+        return False
+
+    def test_updates_dismiss(self):
+        """Test dismissing an update"""
+        success, response = self.run_test(
+            "Updates Dismiss",
+            "POST",
+            "api/updates/dismiss",
+            200,
+            params={"version": "2026.4.0-TEST"}
+        )
+        
+        if success:
+            if response.get("success") == True:
+                print("✅ Updates dismiss API working correctly")
+                print(f"   Dismissed Version: {response.get('dismissed')}")
+                return True
+            else:
+                print(f"❌ Expected success:true, got: {response}")
+                return False
+        return False
+
+    def test_templates_installed_get(self):
+        """Test getting installed templates list"""
+        if not self.admin_token:
+            print("❌ SKIPPED - No admin token available")
+            return False
+            
+        success, response = self.run_test(
+            "Templates Installed Get",
+            "GET",
+            "api/templates/installed",
+            200,
+            params={"token": self.admin_token}
+        )
+        
+        if success:
+            # Check required fields
+            if "installed" in response and "updates_available" in response:
+                print("✅ Templates installed API working correctly")
+                print(f"   Installed Count: {len(response.get('installed', []))}")
+                print(f"   Updates Available: {response.get('updates_available')}")
+                return True
+            else:
+                print(f"❌ Missing required fields. Expected: ['installed', 'updates_available'], Got: {list(response.keys())}")
+                return False
+        return False
+
+    def test_templates_installed_track(self):
+        """Test tracking a new template installation"""
+        if not self.admin_token:
+            print("❌ SKIPPED - No admin token available")
+            return False
+            
+        test_template = {
+            "template_id": "test-template-123",
+            "name": "Test Template",
+            "version": "1.0.0",
+            "game": "arma3",
+            "installed_date": datetime.now().isoformat()
+        }
+        
+        success, response = self.run_test(
+            "Templates Installed Track",
+            "POST",
+            "api/templates/installed/track",
+            200,
+            data=test_template,
+            params={"token": self.admin_token}
+        )
+        
+        if success:
+            if response.get("success") == True:
+                print("✅ Templates tracking API working correctly")
+                print(f"   Tracked Template: {response.get('template_id')}")
+                return True
+            else:
+                print(f"❌ Expected success:true, got: {response}")
+                return False
+        return False
+
+    def test_templates_installed_update(self):
+        """Test one-click template update"""
+        if not self.admin_token:
+            print("❌ SKIPPED - No admin token available")
+            return False
+            
+        template_id = "test-template-123"
+        success, response = self.run_test(
+            "Templates Installed Update",
+            "POST",
+            f"api/templates/installed/{template_id}/update",
+            200,
+            params={"token": self.admin_token}
+        )
+        
+        if success:
+            # Should return success or error message
+            if "success" in response or "error" in response:
+                print("✅ Templates update API responding correctly")
+                if response.get("success"):
+                    print(f"   Update Result: Success")
+                else:
+                    print(f"   Update Result: {response.get('error', 'Unknown error')}")
+                return True
+            else:
+                print(f"❌ Unexpected response format: {response}")
+                return False
+        return False
+
+    def test_templates_installed_delete(self):
+        """Test removing template from installed list"""
+        if not self.admin_token:
+            print("❌ SKIPPED - No admin token available")
+            return False
+            
+        template_id = "test-template-123"
+        success, response = self.run_test(
+            "Templates Installed Delete",
+            "DELETE",
+            f"api/templates/installed/{template_id}",
+            200,
+            params={"token": self.admin_token}
+        )
+        
+        if success:
+            if response.get("success") == True:
+                print("✅ Templates delete API working correctly")
+                print(f"   Deleted Template: {template_id}")
+                return True
+            else:
+                print(f"❌ Expected success:true, got: {response}")
+                return False
+        return False
+
 def main():
-    print("🚀 ServerCraft Iteration 4 Backend API Testing")
+    print("🚀 ServerCraft Iteration 5 Backend API Testing")
     print("=" * 60)
     
     tester = ServerCraftAPITester()
@@ -251,8 +437,25 @@ def main():
     if not tester.test_sub_user_login():
         print("⚠️ Sub-user login failed, continuing with admin tests only")
     
-    # Test marketplace features
-    print("\n📋 MARKETPLACE TESTS")
+    # Test NEW iteration 5 features first
+    print("\n📋 ITERATION 5 NEW FEATURES")
+    print("-" * 30)
+    
+    # Self-update system tests
+    print("\n🔄 Self-Update System Tests:")
+    tester.test_updates_check()
+    tester.test_updates_config()
+    tester.test_updates_dismiss()
+    
+    # Installed templates tracker tests
+    print("\n📦 Installed Templates Tracker Tests:")
+    tester.test_templates_installed_get()
+    tester.test_templates_installed_track()
+    tester.test_templates_installed_update()
+    tester.test_templates_installed_delete()
+    
+    # Test marketplace features (previous iteration)
+    print("\n📋 MARKETPLACE TESTS (Previous)")
     print("-" * 30)
     
     tester.test_marketplace_check_eligibility_sub_user()

@@ -1192,6 +1192,15 @@ function App() {
     const [consoleOutputs, setConsoleOutputs] = useState({});
     const [showSpecsModal, setShowSpecsModal] = useState(false);
     
+    // Self-update system state
+    const [updateInfo, setUpdateInfo] = useState(null);
+    const [showUpdateModal, setShowUpdateModal] = useState(false);
+    const [updateDismissed, setUpdateDismissed] = useState(false);
+    
+    // Installed templates state
+    const [installedTemplates, setInstalledTemplates] = useState([]);
+    const [templateUpdatesCount, setTemplateUpdatesCount] = useState(0);
+    
     // Refs for WebSocket and intervals
     const statsWsRef = useRef(null);
     const pollIntervalRef = useRef(null);
@@ -1558,6 +1567,39 @@ function App() {
             console.error('Failed to load games:', error);
         }
     }, []);
+    
+    // Check for ServerCraft updates
+    const checkForUpdates = useCallback(async () => {
+        try {
+            const res = await fetch(`${API_BASE}/api/updates/check`);
+            const data = await res.json();
+            if (data.update_available) {
+                // Check if dismissed
+                const dismissedRes = await fetch(`${API_BASE}/api/updates/dismissed`);
+                const dismissedData = await dismissedRes.json();
+                const dismissed = dismissedData.dismissed || [];
+                
+                if (!dismissed.includes(data.latest_version)) {
+                    setUpdateInfo(data);
+                    setShowUpdateModal(true);
+                } else {
+                    setUpdateInfo(data);
+                    setUpdateDismissed(true);
+                }
+            }
+        } catch (e) { console.log('Update check skipped'); }
+    }, []);
+    
+    // Load installed templates
+    const loadInstalledTemplates = useCallback(async () => {
+        const token = localStorage.getItem('servercraft_auth_token') || '';
+        try {
+            const res = await fetch(`${API_BASE}/api/templates/installed?token=${token}`);
+            const data = await res.json();
+            setInstalledTemplates(data.installed || []);
+            setTemplateUpdatesCount(data.updates_available || 0);
+        } catch (e) { console.log('Installed templates check skipped'); }
+    }, []);
 
     const loadServers = useCallback(async () => {
         try {
@@ -1685,12 +1727,18 @@ function App() {
         checkSteamCMDStatus();
         checkUPnPStatus();
         loadSettings();
+        checkForUpdates();
+        loadInstalledTemplates();
 
         // Adaptive server polling - more frequent when servers are running
         const serverPollInterval = hasRunningServers ? POLL_INTERVALS.SERVERS_ACTIVE : POLL_INTERVALS.SERVERS_IDLE;
         const interval = setInterval(loadServers, serverPollInterval);
-        return () => clearInterval(interval);
-    }, [loadGames, loadServers, checkSteamCMDStatus, checkUPnPStatus, loadSettings, hasRunningServers]);
+        
+        // Check for updates every hour
+        const updateInterval = setInterval(checkForUpdates, 3600000);
+        
+        return () => { clearInterval(interval); clearInterval(updateInterval); };
+    }, [loadGames, loadServers, checkSteamCMDStatus, checkUPnPStatus, loadSettings, hasRunningServers, checkForUpdates, loadInstalledTemplates]);
 
     // Server actions
     const startServer = async (serverId) => {
@@ -1996,6 +2044,11 @@ function App() {
                         <i className="fas fa-user"></i> {currentUsername}
                     </span>
                     <span className="version-badge" data-testid="version-badge">v2026.3.0-BETA</span>
+                    {updateInfo && updateDismissed && (
+                        <button onClick={() => { setShowUpdateModal(true); setUpdateDismissed(false); }} title="Update available" data-testid="update-available-badge" style={{ background: 'rgba(34,197,94,0.15)', border: '1px solid rgba(34,197,94,0.3)', borderRadius: '6px', padding: '2px 8px', cursor: 'pointer', fontSize: '12px', color: '#22c55e', fontWeight: '600', marginLeft: '4px' }}>
+                            <i className="fas fa-arrow-circle-up"></i> {updateInfo.latest_version}
+                        </button>
+                    )}
                     <button className="logout-btn" onClick={() => handleLogout(false)} title="Logout">
                         <i className="fas fa-sign-out-alt"></i>
                     </button>
@@ -2107,6 +2160,92 @@ function App() {
             {/* System Specs Acknowledgment Modal */}
             {showSpecsModal && (
                 <SpecsAcknowledgmentModal onAcknowledge={acknowledgeSpecs} />
+            )}
+
+            {/* ServerCraft Self-Update Modal */}
+            {showUpdateModal && updateInfo && (
+                <div className="modal" data-testid="update-modal" style={{ zIndex: 10000 }}>
+                    <div className="modal-overlay" style={{ background: 'rgba(0,0,0,0.7)' }}></div>
+                    <div className="modal-content" style={{ maxWidth: '560px', border: '2px solid rgba(34,197,94,0.3)', boxShadow: '0 0 40px rgba(34,197,94,0.1)' }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header" style={{ borderBottom: '1px solid rgba(34,197,94,0.2)', padding: '20px 24px' }}>
+                            <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <i className="fas fa-arrow-circle-up" style={{ color: '#22c55e' }}></i>
+                                ServerCraft Update Available
+                            </h3>
+                        </div>
+                        <div className="modal-body" style={{ padding: '24px', textAlign: 'center' }}>
+                            {/* Update type badge */}
+                            <div style={{ marginBottom: '16px' }}>
+                                <span style={{ 
+                                    padding: '4px 16px', borderRadius: '20px', fontSize: '12px', fontWeight: '700', textTransform: 'uppercase',
+                                    background: updateInfo.update_type === 'major' ? 'rgba(59,130,246,0.15)' : updateInfo.update_type === 'hotfix' ? 'rgba(245,158,11,0.15)' : 'rgba(34,197,94,0.15)',
+                                    color: updateInfo.update_type === 'major' ? '#3b82f6' : updateInfo.update_type === 'hotfix' ? '#f59e0b' : '#22c55e'
+                                }}>
+                                    {updateInfo.update_type === 'major' ? 'Major Update' : updateInfo.update_type === 'hotfix' ? 'Hotfix' : updateInfo.update_type === 'feature' ? 'Feature Update' : 'Beta'}
+                                </span>
+                            </div>
+                            
+                            {/* Version comparison */}
+                            <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginBottom: '20px' }}>
+                                <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.05)', borderRadius: '10px' }}>
+                                    <small style={{ color: 'var(--text-secondary)', display: 'block' }}>Current</small>
+                                    <div style={{ fontWeight: '700', fontSize: '16px' }}>{updateInfo.current_version}</div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', color: '#22c55e', fontSize: '20px' }}>
+                                    <i className="fas fa-arrow-right"></i>
+                                </div>
+                                <div style={{ padding: '12px 20px', background: 'rgba(34,197,94,0.08)', borderRadius: '10px', border: '1px solid rgba(34,197,94,0.2)' }}>
+                                    <small style={{ color: '#22c55e', display: 'block' }}>New</small>
+                                    <div style={{ fontWeight: '700', fontSize: '16px', color: '#22c55e' }}>{updateInfo.latest_version}</div>
+                                </div>
+                            </div>
+                            
+                            {/* Release name */}
+                            {updateInfo.release_name && updateInfo.release_name !== updateInfo.latest_version && (
+                                <h4 style={{ margin: '0 0 12px 0', color: 'var(--text-primary)' }}>"{updateInfo.release_name}"</h4>
+                            )}
+                            
+                            {/* Changelog */}
+                            {updateInfo.changelog && (
+                                <div style={{ textAlign: 'left', padding: '12px 16px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', maxHeight: '150px', overflowY: 'auto', marginBottom: '16px', fontSize: '13px', lineHeight: '1.6' }}>
+                                    <strong style={{ display: 'block', marginBottom: '6px' }}>What's New:</strong>
+                                    <div style={{ color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>{updateInfo.changelog.slice(0, 500)}{updateInfo.changelog.length > 500 ? '...' : ''}</div>
+                                </div>
+                            )}
+                            
+                            {/* Download assets */}
+                            {updateInfo.assets?.length > 0 && (
+                                <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                                    {updateInfo.assets.map((asset, i) => (
+                                        <span key={i}>{asset.name} ({asset.size_mb} MB){i < updateInfo.assets.length - 1 ? ' | ' : ''}</span>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                        <div className="modal-footer" style={{ padding: '16px 24px', display: 'flex', gap: '12px', justifyContent: 'center' }}>
+                            <button 
+                                className="btn" 
+                                data-testid="update-now-btn"
+                                onClick={() => { window.open(updateInfo.html_url || GITHUB_RELEASES_PAGE, '_blank'); }}
+                                style={{ background: '#22c55e', color: '#fff', padding: '10px 32px', fontSize: '15px', fontWeight: '700', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+                            >
+                                <i className="fas fa-download"></i> Yes, Update Now
+                            </button>
+                            <button 
+                                className="btn"
+                                data-testid="update-later-btn"
+                                onClick={async () => { 
+                                    setShowUpdateModal(false); 
+                                    setUpdateDismissed(true);
+                                    await fetch(`${API_BASE}/api/updates/dismiss?version=${updateInfo.latest_version}`, { method: 'POST' });
+                                }}
+                                style={{ background: '#ef4444', color: '#fff', padding: '10px 32px', fontSize: '15px', fontWeight: '700', borderRadius: '8px', border: 'none', cursor: 'pointer' }}
+                            >
+                                <i className="fas fa-clock"></i> No, Update Later
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Toast Container */}
@@ -4039,6 +4178,10 @@ function MarketplaceView({ showToast }) {
     const [selectedTemplate, setSelectedTemplate] = useState(null);
     const [myTemplates, setMyTemplates] = useState([]);
     
+    // Installed templates tracking
+    const [installedList, setInstalledList] = useState([]);
+    const [installedUpdates, setInstalledUpdates] = useState(0);
+    
     // External Auth state (ServerCraft website login for template creators)
     const [extAuthUsername, setExtAuthUsername] = useState('');
     const [extAuthPassword, setExtAuthPassword] = useState('');
@@ -4096,6 +4239,7 @@ function MarketplaceView({ showToast }) {
                 // Load templates
                 await loadTemplates();
                 await loadMyTemplates();
+                await loadInstalledTemplates();
             }
         } catch (error) {
             console.error('Error checking eligibility:', error);
@@ -4127,6 +4271,46 @@ function MarketplaceView({ showToast }) {
         } catch (error) {
             console.error('Error loading my templates:', error);
         }
+    };
+    
+    const loadInstalledTemplates = async () => {
+        const token = getToken();
+        try {
+            const res = await fetch(`${API_BASE}/api/templates/installed?token=${token}`);
+            const data = await res.json();
+            setInstalledList(data.installed || []);
+            setInstalledUpdates(data.updates_available || 0);
+        } catch (e) { console.log('Installed templates load skipped'); }
+    };
+    
+    const handleOneClickUpdate = async (templateId) => {
+        const token = getToken();
+        try {
+            const res = await fetch(`${API_BASE}/api/templates/installed/${templateId}/update?token=${token}`, { method: 'POST' });
+            const data = await res.json();
+            if (data.success) {
+                const blob = new Blob([JSON.stringify(data.template.config, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${data.template.name.replace(/\s+/g, '_')}_v${data.new_version}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+                showToast(`Updated to v${data.new_version}!`, 'success');
+                loadInstalledTemplates();
+            } else if (data.error === 'version_mismatch') {
+                setVersionMismatch(data);
+            } else {
+                showToast(data.message || 'Update failed', 'error');
+            }
+        } catch (e) { showToast('Failed to update template', 'error'); }
+    };
+    
+    const removeInstalledTemplate = async (templateId) => {
+        const token = getToken();
+        await fetch(`${API_BASE}/api/templates/installed/${templateId}?token=${token}`, { method: 'DELETE' });
+        loadInstalledTemplates();
+        showToast('Template removed from installed list', 'info');
     };
 
     const loadTos = async () => {
@@ -4273,7 +4457,6 @@ function MarketplaceView({ showToast }) {
             const res = await fetch(`${API_BASE}/api/marketplace/templates/${templateId}/download?token=${token}`, { method: 'POST' });
             const data = await res.json();
             if (data.success) {
-                // Create downloadable JSON file
                 const template = data.template;
                 const blob = new Blob([JSON.stringify(template.config, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
@@ -4283,6 +4466,19 @@ function MarketplaceView({ showToast }) {
                 a.click();
                 URL.revokeObjectURL(url);
                 showToast('Template downloaded successfully!', 'success');
+                
+                // Track installed template
+                await fetch(`${API_BASE}/api/templates/installed/track?token=${token}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        template_id: templateId,
+                        version: template.version,
+                        name: template.name,
+                        game: template.game || ''
+                    })
+                });
+                loadInstalledTemplates();
             }
         } catch (error) {
             showToast('Failed to download template', 'error');
@@ -4434,6 +4630,16 @@ function MarketplaceView({ showToast }) {
                     onClick={() => setActiveTab('my-templates')}
                 >
                     <i className="fas fa-folder"></i> My Templates
+                </button>
+                <button 
+                    className={`tab-btn ${activeTab === 'installed' ? 'active' : ''}`}
+                    onClick={() => { setActiveTab('installed'); loadInstalledTemplates(); }}
+                    data-testid="installed-tab"
+                >
+                    <i className="fas fa-box-open"></i> Installed
+                    {installedUpdates > 0 && (
+                        <span style={{ marginLeft: '6px', padding: '1px 8px', borderRadius: '10px', fontSize: '11px', fontWeight: '700', background: 'rgba(239,68,68,0.15)', color: '#ef4444' }}>{installedUpdates}</span>
+                    )}
                 </button>
             </div>
 
@@ -4827,6 +5033,66 @@ function MarketplaceView({ showToast }) {
                                         <span><i className="fas fa-gamepad"></i> {template.game}</span>
                                         <span><i className="fas fa-download"></i> {template.downloads} downloads</span>
                                         <span><i className="fas fa-calendar"></i> {new Date(template.created_at).toLocaleDateString()}</span>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Installed Templates Tab */}
+            {activeTab === 'installed' && (
+                <div className="installed-templates" data-testid="installed-templates-section">
+                    {installedUpdates > 0 && (
+                        <div style={{ padding: '12px 16px', background: 'rgba(34,197,94,0.06)', borderRadius: '8px', border: '1px solid rgba(34,197,94,0.15)', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                            <i className="fas fa-arrow-circle-up" style={{ color: '#22c55e', fontSize: '20px' }}></i>
+                            <div>
+                                <strong style={{ color: '#22c55e' }}>{installedUpdates} update{installedUpdates > 1 ? 's' : ''} available</strong>
+                                <p style={{ margin: '2px 0 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>Click "Update" to download the latest version of each template.</p>
+                            </div>
+                        </div>
+                    )}
+                    
+                    {installedList.length === 0 ? (
+                        <div className="no-templates">
+                            <i className="fas fa-box-open"></i>
+                            <p>No templates installed yet. Browse the marketplace to find templates for your servers.</p>
+                            <button className="btn btn-primary" onClick={() => setActiveTab('browse')}>
+                                <i className="fas fa-search"></i> Browse Templates
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            {installedList.map(inst => (
+                                <div key={inst.template_id} data-testid={`installed-${inst.template_id}`} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 18px', background: inst.update_available ? 'rgba(34,197,94,0.04)' : 'rgba(255,255,255,0.03)', borderRadius: '10px', border: `1px solid ${inst.update_available ? 'rgba(34,197,94,0.2)' : 'rgba(255,255,255,0.06)'}` }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                                        <div style={{ width: '42px', height: '42px', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', background: inst.update_available ? 'rgba(34,197,94,0.12)' : 'rgba(59,130,246,0.12)' }}>
+                                            <i className={`fas ${inst.update_available ? 'fa-arrow-circle-up' : 'fa-puzzle-piece'}`} style={{ color: inst.update_available ? '#22c55e' : '#3b82f6' }}></i>
+                                        </div>
+                                        <div>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                <strong style={{ fontSize: '15px' }}>{inst.name}</strong>
+                                                <span style={{ padding: '2px 8px', borderRadius: '6px', fontSize: '11px', background: 'rgba(255,255,255,0.06)', color: 'var(--text-secondary)' }}>v{inst.installed_version}</span>
+                                                {inst.update_available && (
+                                                    <span style={{ padding: '2px 8px', borderRadius: '6px', fontSize: '11px', background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontWeight: '600' }}>v{inst.latest_version} available</span>
+                                                )}
+                                            </div>
+                                            <p style={{ margin: '3px 0 0 0', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                {inst.game && <><i className="fas fa-gamepad"></i> {inst.game} | </>}
+                                                Installed: {inst.installed_at ? new Date(inst.installed_at).toLocaleDateString() : 'Unknown'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '6px' }}>
+                                        {inst.update_available && (
+                                            <button className="btn btn-sm" style={{ background: '#22c55e', color: '#fff', border: 'none', fontWeight: '600' }} onClick={() => handleOneClickUpdate(inst.template_id)} data-testid={`update-template-${inst.template_id}`}>
+                                                <i className="fas fa-download"></i> Update
+                                            </button>
+                                        )}
+                                        <button className="btn btn-gray btn-sm" onClick={() => removeInstalledTemplate(inst.template_id)} title="Remove from installed list">
+                                            <i className="fas fa-trash"></i>
+                                        </button>
                                     </div>
                                 </div>
                             ))}
