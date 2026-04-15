@@ -2734,7 +2734,16 @@ function WorkshopView({ games, showToast }) {
                 setApiKeyMasked(data.masked);
                 setSteamApiKey('');
                 setShowApiKeyInput(false);
-                showToast('Steam API key saved!', 'success');
+                showToast('Steam API key saved! You can now search mods.', 'success');
+                // Refresh workshop status to update cache stats
+                try {
+                    const statusRes = await fetch(`${API_BASE}/api/workshop/status`);
+                    if (statusRes.ok) {
+                        const status = await statusRes.json();
+                        setWorkshopStatus(status);
+                        setCacheStats(status.cache_stats || null);
+                    }
+                } catch (e) {}
             }
         } catch (e) { showToast('Failed to save key', 'error'); }
     };

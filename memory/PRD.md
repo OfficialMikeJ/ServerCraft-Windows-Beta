@@ -41,6 +41,11 @@ Windows-based game server panel (ServerCraft) running on Windows Server 2022/202
 - [x] **All 14+ Games** - Every supported game listed in all dropdown menus
 - [x] **Users Nav Tab** - New "Users" navigation tab with full management view
 - [x] **Version Updated** - v2026.3.0-BETA across backend and frontend
+- [x] **Steam API Key Management** - Users provide their own Steam Web API key for mod browsing/searching
+- [x] **Workshop Search** - Live search via Steam Web API (IPublishedFileService/QueryFiles) with results showing subscriptions, favorites, file size, tags
+- [x] **Mod Cache Wired to Downloads** - Workshop downloads check cache first, restore from cache on hit, cache on fresh download
+- [x] **Arma Reforger Launch Params** - Full Enfusion engine params: -config ServerConfig.json, -maxPlayers, -bindPort, -publicPort, -a2sPort, -addons
+- [x] **All Games Launch Params** - Added specific params for DayZ, Ground Branch, ICARUS, No One Survived, FiveM, Source Engine
 
 ## Prioritized Backlog
 
