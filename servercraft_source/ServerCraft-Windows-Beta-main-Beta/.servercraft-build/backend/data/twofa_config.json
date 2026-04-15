@@ -1,0 +1,23 @@
+{
+  "enabled": false,
+  "secret": null,
+  "instance_id": "bfd8d711-a002-437a-b09b-e37b39363cb3",
+  "setup_completed": false,
+  "backup_codes": [],
+  "created_at": null,
+  "last_verified": null,
+  "pending_secret": "HL5KG72CSRELYSJNVICIVSAJI6BDCHPA",
+  "pending_backup_codes": [
+    "HCI5YLNY",
+    "SCML6DFI",
+    "QAQNFTYO",
+    "K66EHADP",
+    "LO75HKWQ",
+    "32SJKQKF",
+    "5FOPYGQ5",
+    "NKMKK6XN",
+    "ETXSSX22",
+    "WJD4U5MK"
+  ],
+  "setup_initiated_at": "2026-01-04T18:10:45.628513+00:00"
+}
