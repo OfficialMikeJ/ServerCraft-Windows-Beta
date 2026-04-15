@@ -46,6 +46,10 @@ Windows-based game server panel (ServerCraft) running on Windows Server 2022/202
 - [x] **Mod Cache Wired to Downloads** - Workshop downloads check cache first, restore from cache on hit, cache on fresh download
 - [x] **Arma Reforger Launch Params** - Full Enfusion engine params: -config ServerConfig.json, -maxPlayers, -bindPort, -publicPort, -a2sPort, -addons
 - [x] **All Games Launch Params** - Added specific params for DayZ, Ground Branch, ICARUS, No One Survived, FiveM, Source Engine
+- [x] **Sub-User Login Flow** - Login screen has Admin/Sub-User toggle tabs; sub-users login via dedicated API, session persists, onboarding skipped
+- [x] **Template Ratings/Reviews** - 1-5 star ratings with optional text reviews; average rating displayed on cards; review form in template detail modal
+- [x] **WebSocket Mod Download Progress** - /ws/mod-download endpoint for real-time batch progress; progress bar with per-mod status, cache hits, and log console in Import Modlist tab
+- [x] **Sub-User Session Persistence** - validateStoredSession checks sub-user tokens via /api/sub-users/validate; localStorage stores sub-user role info
 
 ## Prioritized Backlog
 
