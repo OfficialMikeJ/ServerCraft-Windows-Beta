@@ -54,12 +54,13 @@ const SECURITY_QUESTIONS = [
 // ==================== AUTH COMPONENTS ====================
 
 // Login Screen Component
-function LoginScreen({ onLogin, showPasswordReset, setShowPasswordReset }) {
+function LoginScreen({ onLogin, onSubUserLogin, showPasswordReset, setShowPasswordReset }) {
     const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
     const [rememberMe, setRememberMe] = useState(false);
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [isSubUser, setIsSubUser] = useState(false);
     
     // 2FA State
     const [requires2FA, setRequires2FA] = useState(false);
@@ -89,15 +90,23 @@ function LoginScreen({ onLogin, showPasswordReset, setShowPasswordReset }) {
         setError('');
         setLoading(true);
         
-        const result = await onLogin(username, password, rememberMe);
-        
-        setLoading(false);
-        if (!result.success) {
-            setError(result.error);
-        } else if (result.requires_2fa) {
-            // Show 2FA input screen
-            setRequires2FA(true);
-            setTempToken(result.temp_token);
+        if (isSubUser) {
+            // Sub-user login
+            const result = await onSubUserLogin(username, password);
+            setLoading(false);
+            if (!result.success) {
+                setError(result.error);
+            }
+        } else {
+            // Admin login
+            const result = await onLogin(username, password, rememberMe);
+            setLoading(false);
+            if (!result.success) {
+                setError(result.error);
+            } else if (result.requires_2fa) {
+                setRequires2FA(true);
+                setTempToken(result.temp_token);
+            }
         }
     };
     
@@ -397,15 +406,26 @@ function LoginScreen({ onLogin, showPasswordReset, setShowPasswordReset }) {
                 </div>
                 
                 <form className="login-form" onSubmit={handleSubmit}>
+                    {/* Login Type Toggle */}
+                    <div style={{ display: 'flex', borderRadius: '8px', overflow: 'hidden', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
+                        <button type="button" onClick={() => { setIsSubUser(false); setError(''); }} data-testid="admin-login-tab" style={{ flex: 1, padding: '8px', background: !isSubUser ? 'rgba(59,130,246,0.2)' : 'transparent', color: !isSubUser ? '#3b82f6' : 'var(--text-secondary)', border: 'none', cursor: 'pointer', fontWeight: !isSubUser ? '600' : '400', fontSize: '13px' }}>
+                            <i className="fas fa-user-shield"></i> Admin
+                        </button>
+                        <button type="button" onClick={() => { setIsSubUser(true); setError(''); }} data-testid="subuser-login-tab" style={{ flex: 1, padding: '8px', background: isSubUser ? 'rgba(34,197,94,0.2)' : 'transparent', color: isSubUser ? '#22c55e' : 'var(--text-secondary)', border: 'none', cursor: 'pointer', fontWeight: isSubUser ? '600' : '400', fontSize: '13px', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
+                            <i className="fas fa-users"></i> Sub-User
+                        </button>
+                    </div>
+                    
                     <div className="form-group">
-                        <label><i className="fas fa-user"></i> Username</label>
+                        <label><i className={`fas ${isSubUser ? 'fa-user-cog' : 'fa-user'}`}></i> Username</label>
                         <input
                             type="text"
                             className="form-input"
                             value={username}
                             onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Enter username..."
+                            placeholder={isSubUser ? "Sub-user username..." : "Enter username..."}
                             autoFocus
+                            data-testid="login-username-input"
                         />
                     </div>
                     
@@ -417,33 +437,39 @@ function LoginScreen({ onLogin, showPasswordReset, setShowPasswordReset }) {
                             value={password}
                             onChange={(e) => setPassword(e.target.value)}
                             placeholder="Enter password..."
+                            data-testid="login-password-input"
                         />
                     </div>
                     
-                    <div className="form-checkbox">
-                        <label>
-                            <input
-                                type="checkbox"
-                                checked={rememberMe}
-                                onChange={(e) => setRememberMe(e.target.checked)}
-                            />
-                            <span>Remember me for 30 days</span>
-                        </label>
-                    </div>
+                    {!isSubUser && (
+                        <div className="form-checkbox">
+                            <label>
+                                <input
+                                    type="checkbox"
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                />
+                                <span>Remember me for 30 days</span>
+                            </label>
+                        </div>
+                    )}
                     
                     {error && <div className="login-error"><i className="fas fa-exclamation-circle"></i> {error}</div>}
                     
-                    <button type="submit" className="btn btn-primary login-btn" disabled={loading || !username || !password}>
-                        {loading ? <><i className="fas fa-spinner fa-spin"></i> Signing in...</> : <><i className="fas fa-sign-in-alt"></i> Sign In</>}
+                    <button type="submit" className="btn btn-primary login-btn" disabled={loading || !username || !password} data-testid="login-submit-btn">
+                        {loading ? <><i className="fas fa-spinner fa-spin"></i> Signing in...</> : <><i className="fas fa-sign-in-alt"></i> {isSubUser ? 'Sign In as Sub-User' : 'Sign In'}</>}
                     </button>
                     
-                    <button type="button" className="forgot-password-link" onClick={handleForgotPassword}>
-                        <i className="fas fa-question-circle"></i> Forgot Password?
-                    </button>
+                    {!isSubUser && (
+                        <button type="button" className="forgot-password-link" onClick={handleForgotPassword}>
+                            <i className="fas fa-question-circle"></i> Forgot Password?
+                        </button>
+                    )}
                 </form>
                 
                 <div className="login-footer">
-                    <p>Default: Admin / Password123!</p>
+                    {!isSubUser && <p>Default: Admin / Password123!</p>}
+                    {isSubUser && <p style={{ color: '#22c55e', fontSize: '12px' }}>Contact your admin for sub-user credentials</p>}
                     <p className="copyright">© 2026 TierOne Development</p>
                 </div>
             </div>
@@ -1302,12 +1328,52 @@ function App() {
             // No 2FA required - complete login
             localStorage.setItem('servercraft_auth_token', data.token);
             localStorage.setItem('servercraft_remember_me', rememberMe.toString());
+            localStorage.removeItem('servercraft_sub_user');
             
             setAuthToken(data.token);
             setIsAuthenticated(true);
             setCurrentUsername(data.username);
             setMustChangePassword(data.must_change_password);
             setNeedsSecurityQuestions(!data.has_security_questions);
+            setShowLoginScreen(false);
+            
+            return { success: true };
+        } catch (error) {
+            return { success: false, error: 'Connection failed' };
+        }
+    };
+    
+    // Handle sub-user login
+    const handleSubUserLogin = async (username, password) => {
+        try {
+            const response = await fetch(`${API_BASE}/api/sub-users/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            });
+            
+            if (!response.ok) {
+                const error = await response.json();
+                return { success: false, error: error.detail || 'Login failed' };
+            }
+            
+            const data = await response.json();
+            
+            localStorage.setItem('servercraft_auth_token', data.token);
+            localStorage.setItem('servercraft_sub_user', JSON.stringify({
+                user_id: data.user_id,
+                username: data.username,
+                role: data.role,
+                role_label: data.role_label,
+                assigned_servers: data.assigned_servers,
+                permissions: data.permissions
+            }));
+            
+            setAuthToken(data.token);
+            setIsAuthenticated(true);
+            setCurrentUsername(`${data.username} (${data.role_label})`);
+            setMustChangePassword(false);
+            setNeedsSecurityQuestions(false);
             setShowLoginScreen(false);
             
             return { success: true };
@@ -1329,6 +1395,7 @@ function App() {
         }
         
         localStorage.removeItem('servercraft_auth_token');
+        localStorage.removeItem('servercraft_sub_user');
         // Keep remember_me setting for next login
         
         setAuthToken(null);
@@ -1818,6 +1885,7 @@ function App() {
         return (
             <LoginScreen
                 onLogin={handleLogin}
+                onSubUserLogin={handleSubUserLogin}
                 showPasswordReset={showPasswordReset}
                 setShowPasswordReset={setShowPasswordReset}
             />
@@ -2790,6 +2858,66 @@ function WorkshopView({ games, showToast }) {
             } else { showToast('Download failed', 'error'); }
         } catch (e) { showToast('Download failed', 'error'); }
     };
+    
+    // WebSocket mod download progress
+    const [downloadProgress, setDownloadProgress] = useState(null);
+    const [downloadLog, setDownloadLog] = useState([]);
+    const wsRef = useRef(null);
+    
+    const startBatchDownloadWs = (game, modIds) => {
+        if (!game || modIds.length === 0) return;
+        
+        const wsProtocol = API_BASE.startsWith('https') ? 'wss' : 'ws';
+        const wsHost = API_BASE.replace(/^https?:\/\//, '');
+        const wsUrl = `${wsProtocol}://${wsHost}/ws/mod-download`;
+        
+        setDownloadProgress({ total: modIds.length, downloaded: 0, from_cache: 0, failed: 0, percent: 0, active: true, current_mod: '' });
+        setDownloadLog([]);
+        
+        try {
+            const ws = new WebSocket(wsUrl);
+            wsRef.current = ws;
+            
+            ws.onopen = () => {
+                ws.send(JSON.stringify({ action: 'download_batch', game, mod_ids: modIds }));
+            };
+            
+            ws.onmessage = (event) => {
+                const msg = JSON.parse(event.data);
+                
+                if (msg.type === 'batch_start') {
+                    setDownloadLog(prev => [...prev, `Starting batch: ${msg.total} mods for ${msg.game_name}`]);
+                } else if (msg.type === 'mod_start') {
+                    setDownloadProgress(prev => prev ? { ...prev, percent: msg.percent, current_mod: msg.mod_id } : prev);
+                    setDownloadLog(prev => [...prev, `[${msg.index}/${msg.total}] Downloading ${msg.mod_id}...`]);
+                } else if (msg.type === 'mod_complete') {
+                    setDownloadProgress(prev => prev ? { ...prev, downloaded: (prev.downloaded || 0) + 1, from_cache: (prev.from_cache || 0) + (msg.from_cache ? 1 : 0), percent: msg.percent } : prev);
+                    setDownloadLog(prev => [...prev, `[${msg.index}/${msg.total}] ${msg.mod_id} - ${msg.from_cache ? 'Restored from cache' : 'Downloaded'}`]);
+                } else if (msg.type === 'mod_failed') {
+                    setDownloadProgress(prev => prev ? { ...prev, failed: (prev.failed || 0) + 1, percent: msg.percent } : prev);
+                    setDownloadLog(prev => [...prev, `[${msg.index}/${msg.total}] ${msg.mod_id} - FAILED: ${msg.error}`]);
+                } else if (msg.type === 'batch_complete') {
+                    setDownloadProgress(prev => prev ? { ...prev, percent: 100, active: false, downloaded: msg.downloaded, from_cache: msg.from_cache, failed: msg.failed } : prev);
+                    setDownloadLog(prev => [...prev, `Batch complete: ${msg.downloaded} downloaded, ${msg.from_cache} from cache, ${msg.failed} failed`]);
+                    showToast(`Batch download complete: ${msg.downloaded}/${msg.total} mods${msg.from_cache > 0 ? ` (${msg.from_cache} from cache)` : ''}`, msg.failed > 0 ? 'warning' : 'success');
+                    ws.close();
+                } else if (msg.type === 'error') {
+                    showToast(msg.message, 'error');
+                    setDownloadProgress(prev => prev ? { ...prev, active: false } : prev);
+                }
+            };
+            
+            ws.onerror = () => {
+                showToast('WebSocket connection error - falling back to HTTP', 'warning');
+                setDownloadProgress(null);
+            };
+            
+            ws.onclose = () => { wsRef.current = null; };
+        } catch (e) {
+            showToast('Failed to start WebSocket download', 'error');
+            setDownloadProgress(null);
+        }
+    };
 
     // Get games that have workshop support
     const workshopGames = Object.entries(games).filter(([key, game]) => game.workshop_id);
@@ -3029,7 +3157,40 @@ function WorkshopView({ games, showToast }) {
                                                 <div key={id} className="mod-item"><span>{id}</span></div>
                                             ))}
                                         </div>
-                                        <button className="btn btn-green" onClick={downloadAllParsedMods} data-testid="download-mods-btn">Download All Mods</button>
+                                        <button className="btn btn-green" onClick={() => startBatchDownloadWs('arma3', parsedMods)} disabled={downloadProgress?.active} data-testid="download-mods-btn">
+                                            {downloadProgress?.active ? <><i className="fas fa-spinner fa-spin"></i> Downloading...</> : <><i className="fas fa-download"></i> Download All Mods</>}
+                                        </button>
+                                    </div>
+                                )}
+                                
+                                {/* Download Progress */}
+                                {downloadProgress && (
+                                    <div style={{ marginTop: '16px', padding: '16px', background: 'rgba(34,197,94,0.06)', borderRadius: '8px', border: '1px solid rgba(34,197,94,0.15)' }} data-testid="download-progress">
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                                            <strong>{downloadProgress.active ? 'Downloading...' : 'Download Complete'}</strong>
+                                            <span style={{ color: '#22c55e', fontWeight: '600' }}>{downloadProgress.percent}%</span>
+                                        </div>
+                                        <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden', marginBottom: '10px' }}>
+                                            <div style={{ height: '100%', width: `${downloadProgress.percent}%`, background: 'linear-gradient(90deg, #22c55e, #4ade80)', borderRadius: '4px', transition: 'width 0.3s ease' }} />
+                                        </div>
+                                        <div style={{ display: 'flex', gap: '16px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                                            <span><i className="fas fa-check" style={{ color: '#22c55e' }}></i> {downloadProgress.downloaded || 0} downloaded</span>
+                                            <span><i className="fas fa-database" style={{ color: '#3b82f6' }}></i> {downloadProgress.from_cache || 0} from cache</span>
+                                            {downloadProgress.failed > 0 && <span><i className="fas fa-times" style={{ color: '#ef4444' }}></i> {downloadProgress.failed} failed</span>}
+                                            {downloadProgress.current_mod && downloadProgress.active && <span><i className="fas fa-spinner fa-spin"></i> {downloadProgress.current_mod}</span>}
+                                        </div>
+                                        {downloadLog.length > 0 && (
+                                            <div style={{ marginTop: '10px', maxHeight: '120px', overflowY: 'auto', background: 'rgba(0,0,0,0.2)', borderRadius: '6px', padding: '8px', fontSize: '11px', fontFamily: 'monospace' }}>
+                                                {downloadLog.map((line, i) => (
+                                                    <div key={i} style={{ color: line.includes('FAILED') ? '#ef4444' : line.includes('cache') ? '#3b82f6' : 'var(--text-secondary)', padding: '1px 0' }}>{line}</div>
+                                                ))}
+                                            </div>
+                                        )}
+                                        {!downloadProgress.active && (
+                                            <button className="btn btn-gray btn-sm" onClick={() => setDownloadProgress(null)} style={{ marginTop: '8px' }}>
+                                                <i className="fas fa-times"></i> Dismiss
+                                            </button>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -4072,6 +4233,59 @@ function MarketplaceView({ showToast }) {
             showToast('Failed to submit report', 'error');
         }
     };
+    
+    const [ratingValue, setRatingValue] = useState(0);
+    const [reviewText, setReviewText] = useState('');
+    const [templateReviews, setTemplateReviews] = useState([]);
+    
+    const handleRateTemplate = async (templateId) => {
+        if (ratingValue < 1 || ratingValue > 5) { showToast('Select a rating (1-5 stars)', 'error'); return; }
+        const token = getToken();
+        try {
+            const res = await fetch(`${API_BASE}/api/marketplace/templates/${templateId}/rate?token=${token}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ rating: ratingValue, review: reviewText })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showToast(data.message || 'Rating submitted!', 'success');
+                setRatingValue(0);
+                setReviewText('');
+                loadTemplates(selectedGame);
+                // Reload reviews
+                if (selectedTemplate) {
+                    loadReviews(templateId);
+                    setSelectedTemplate(prev => prev ? { ...prev, rating: data.new_rating, ratings_count: data.ratings_count } : null);
+                }
+            } else {
+                showToast(data.detail || 'Failed to submit rating', 'error');
+            }
+        } catch (e) { showToast('Failed to submit rating', 'error'); }
+    };
+    
+    const loadReviews = async (templateId) => {
+        const token = getToken();
+        try {
+            const res = await fetch(`${API_BASE}/api/marketplace/templates/${templateId}/reviews?token=${token}`);
+            const data = await res.json();
+            setTemplateReviews(data.reviews || []);
+        } catch (e) { setTemplateReviews([]); }
+    };
+    
+    const renderStars = (rating, interactive = false, onSelect = null) => {
+        return (
+            <span style={{ display: 'inline-flex', gap: '2px' }}>
+                {[1, 2, 3, 4, 5].map(star => (
+                    <i key={star} className={`fas fa-star`}
+                        style={{ color: star <= rating ? '#f59e0b' : 'rgba(255,255,255,0.1)', cursor: interactive ? 'pointer' : 'default', fontSize: interactive ? '20px' : '14px' }}
+                        onClick={() => interactive && onSelect && onSelect(star)}
+                        data-testid={interactive ? `rate-star-${star}` : undefined}
+                    />
+                ))}
+            </span>
+        );
+    };
 
     // Loading state
     if (loading) {
@@ -4208,6 +4422,7 @@ function MarketplaceView({ showToast }) {
                                         <div className="template-stats" style={{ color: '#bbf7d0' }}>
                                             <span><i className="fas fa-download"></i> {template.downloads}</span>
                                             <span><i className="fas fa-gamepad"></i> {template.game}</span>
+                                            <span>{renderStars(template.rating || 0)} ({template.ratings_count || 0})</span>
                                         </div>
                                     </div>
                                     <div className="template-actions">
@@ -4505,15 +4720,15 @@ function MarketplaceView({ showToast }) {
             {/* Template Detail Modal */}
             {selectedTemplate && (
                 <div className="modal template-detail-modal">
-                    <div className="modal-overlay" onClick={() => setSelectedTemplate(null)}></div>
+                    <div className="modal-overlay" onClick={() => { setSelectedTemplate(null); setTemplateReviews([]); setRatingValue(0); setReviewText(''); }}></div>
                     <div className="modal-content">
                         <div className="modal-header">
                             <h3>{selectedTemplate.name}</h3>
-                            <button className="modal-close" onClick={() => setSelectedTemplate(null)}>
+                            <button className="modal-close" onClick={() => { setSelectedTemplate(null); setTemplateReviews([]); }}>
                                 <i className="fas fa-times"></i>
                             </button>
                         </div>
-                        <div className="modal-body">
+                        <div className="modal-body" style={{ maxHeight: '65vh', overflowY: 'auto' }}>
                             <div className="template-screenshots">
                                 {selectedTemplate.screenshots?.map((ss, i) => (
                                     <img key={i} src={ss} alt={`Screenshot ${i + 1}`} />
@@ -4521,12 +4736,54 @@ function MarketplaceView({ showToast }) {
                             </div>
                             <div className="template-details">
                                 <p><strong>Version:</strong> {selectedTemplate.version}</p>
-                                <p><strong>Author:</strong> {selectedTemplate.author}</p>
+                                <p><strong>Author:</strong> {selectedTemplate.author_name || selectedTemplate.author}</p>
                                 <p><strong>Game:</strong> {selectedTemplate.game}</p>
                                 <p><strong>Downloads:</strong> {selectedTemplate.downloads}</p>
+                                <p><strong>Rating:</strong> {renderStars(selectedTemplate.rating || 0)} ({selectedTemplate.ratings_count || 0} reviews)</p>
                                 <p><strong>Description:</strong></p>
                                 <p>{selectedTemplate.description}</p>
                             </div>
+                            
+                            {/* Rate & Review */}
+                            <div style={{ marginTop: '20px', padding: '16px', background: 'rgba(245,158,11,0.06)', borderRadius: '8px', border: '1px solid rgba(245,158,11,0.15)' }}>
+                                <h4 style={{ margin: '0 0 10px 0' }}><i className="fas fa-star" style={{ color: '#f59e0b' }}></i> Rate This Template</h4>
+                                <div style={{ marginBottom: '10px' }}>
+                                    {renderStars(ratingValue, true, setRatingValue)}
+                                    {ratingValue > 0 && <span style={{ marginLeft: '10px', color: '#f59e0b', fontWeight: '600' }}>{ratingValue}/5</span>}
+                                </div>
+                                <textarea 
+                                    className="form-textarea" 
+                                    placeholder="Write a review (optional)..." 
+                                    value={reviewText}
+                                    onChange={e => setReviewText(e.target.value)}
+                                    rows={3}
+                                    style={{ marginBottom: '10px', width: '100%' }}
+                                    data-testid="review-text-input"
+                                />
+                                <button className="btn btn-primary btn-sm" onClick={() => handleRateTemplate(selectedTemplate.id)} disabled={ratingValue < 1} data-testid="submit-review-btn">
+                                    <i className="fas fa-paper-plane"></i> Submit Review
+                                </button>
+                            </div>
+                            
+                            {/* Reviews List */}
+                            {templateReviews.length === 0 && selectedTemplate && (() => { loadReviews(selectedTemplate.id); return null; })()}
+                            {templateReviews.length > 0 && (
+                                <div style={{ marginTop: '16px' }}>
+                                    <h4><i className="fas fa-comments"></i> Reviews ({templateReviews.length})</h4>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                                        {templateReviews.map((review, idx) => (
+                                            <div key={idx} style={{ padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', border: '1px solid rgba(255,255,255,0.06)' }}>
+                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                                    <strong>{review.username}</strong>
+                                                    {renderStars(review.rating)}
+                                                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{new Date(review.created_at).toLocaleDateString()}</span>
+                                                </div>
+                                                {review.review && <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>{review.review}</p>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         <div className="modal-footer">
                             <button 

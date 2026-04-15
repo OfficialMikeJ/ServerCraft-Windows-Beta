@@ -1364,7 +1364,7 @@ async def clear_all_cache(token: str = None):
         raise HTTPException(status_code=401, detail="Not authenticated")
     return mod_cache_manager.clear_cache()
 
-# ==================== MARKETPLACE VERSIONING ROUTES ====================
+# ==================== MARKETPLACE VERSIONING & RATINGS ROUTES ====================
 
 @api_router.get("/marketplace/templates/{template_id}/versions")
 async def get_template_versions(template_id: str, token: str = None):
@@ -1391,7 +1391,34 @@ async def update_template_version(template_id: str, request: Request, token: str
         raise HTTPException(status_code=400, detail=result.get("error", "Update failed"))
     return result
 
-# ==================== END NPM/SUB-USER/CACHE ROUTES ====================
+class RateTemplateRequest(BaseModel):
+    rating: int
+    review: str = ""
+
+@api_router.post("/marketplace/templates/{template_id}/rate")
+async def rate_template(template_id: str, request_body: RateTemplateRequest, token: str = None):
+    """Rate and review a template (1-5 stars)"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    result = marketplace_manager.rate_template(
+        template_id, user_data.get("username", ""),
+        request_body.rating, request_body.review
+    )
+    if not result.get("success"):
+        raise HTTPException(status_code=400, detail=result.get("error"))
+    return result
+
+@api_router.get("/marketplace/templates/{template_id}/reviews")
+async def get_template_reviews(template_id: str, token: str = None):
+    """Get reviews for a template"""
+    user_data = get_user_from_token(token)
+    if not user_data:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return marketplace_manager.get_template_reviews(template_id)
+
+# ==================== END MARKETPLACE VERSIONING & RATINGS ====================
 
 # ==================== ANALYTICS & FEEDBACK ROUTES ====================
 
@@ -2309,6 +2336,122 @@ async def websocket_console(websocket: WebSocket, server_id: str):
                 await steamcmd_manager.submit_guard_code(code)
     except WebSocketDisconnect:
         manager.disconnect(websocket, f"console_{server_id}")
+
+@app.websocket("/ws/mod-download")
+async def websocket_mod_download(websocket: WebSocket):
+    """WebSocket for real-time mod download progress"""
+    await websocket.accept()
+    try:
+        while True:
+            data = await websocket.receive_json()
+            action = data.get("action")
+            
+            if action == "download_batch":
+                game = data.get("game")
+                mod_ids = data.get("mod_ids", [])
+                
+                if not game or game not in GAME_DEFINITIONS:
+                    await websocket.send_json({"type": "error", "message": "Invalid game"})
+                    continue
+                
+                game_def = GAME_DEFINITIONS[game]
+                workshop_id = game_def.get("workshop_id")
+                if not workshop_id:
+                    await websocket.send_json({"type": "error", "message": "Game does not support workshop"})
+                    continue
+                
+                total = len(mod_ids)
+                game_mods_path = workshop_manager.mods_path / workshop_id
+                game_mods_path.mkdir(parents=True, exist_ok=True)
+                
+                await websocket.send_json({
+                    "type": "batch_start",
+                    "total": total,
+                    "game": game,
+                    "game_name": game_def["name"]
+                })
+                
+                downloaded = 0
+                from_cache = 0
+                failed = 0
+                
+                for i, mod_id in enumerate(mod_ids):
+                    await websocket.send_json({
+                        "type": "mod_start",
+                        "mod_id": mod_id,
+                        "index": i + 1,
+                        "total": total,
+                        "percent": round((i / total) * 100)
+                    })
+                    
+                    # Check cache first
+                    cached = False
+                    if mod_cache_manager.is_cached(game, mod_id):
+                        restore = mod_cache_manager.restore_from_cache(game, mod_id, game_mods_path)
+                        if restore.get("success"):
+                            cached = True
+                            from_cache += 1
+                            downloaded += 1
+                            await websocket.send_json({
+                                "type": "mod_complete",
+                                "mod_id": mod_id,
+                                "index": i + 1,
+                                "total": total,
+                                "from_cache": True,
+                                "percent": round(((i + 1) / total) * 100)
+                            })
+                            continue
+                    
+                    # Download fresh
+                    result = await steamcmd_manager.download_workshop_mod(
+                        workshop_id, mod_id, game_mods_path
+                    )
+                    
+                    if result.get("success"):
+                        downloaded += 1
+                        # Cache the mod
+                        mod_path = game_mods_path / mod_id
+                        if mod_path.exists():
+                            mod_cache_manager.cache_mod(game, mod_id, mod_path)
+                        
+                        await websocket.send_json({
+                            "type": "mod_complete",
+                            "mod_id": mod_id,
+                            "index": i + 1,
+                            "total": total,
+                            "from_cache": False,
+                            "percent": round(((i + 1) / total) * 100)
+                        })
+                    else:
+                        failed += 1
+                        await websocket.send_json({
+                            "type": "mod_failed",
+                            "mod_id": mod_id,
+                            "index": i + 1,
+                            "total": total,
+                            "error": result.get("error", "Unknown error"),
+                            "percent": round(((i + 1) / total) * 100)
+                        })
+                    
+                    # Track analytics
+                    if result.get("success"):
+                        analytics_manager.track_workshop_download()
+                
+                await websocket.send_json({
+                    "type": "batch_complete",
+                    "total": total,
+                    "downloaded": downloaded,
+                    "from_cache": from_cache,
+                    "failed": failed,
+                    "percent": 100
+                })
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        try:
+            await websocket.send_json({"type": "error", "message": str(e)})
+        except Exception:
+            pass
 
 @app.websocket("/ws/stats")
 async def websocket_stats(websocket: WebSocket):

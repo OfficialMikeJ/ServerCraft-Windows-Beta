@@ -502,6 +502,75 @@ class MarketplaceManager:
         
         return {"success": True, "report_id": report["id"]}
     
+    # ==================== RATINGS & REVIEWS ====================
+    
+    def rate_template(self, template_id: str, username: str, rating: int, review: str = "") -> Dict:
+        """Rate and optionally review a template (1-5 stars)"""
+        if rating < 1 or rating > 5:
+            return {"success": False, "error": "Rating must be between 1 and 5"}
+        
+        data = self._load_json(self.templates_file)
+        
+        for i, template in enumerate(data.get("templates", [])):
+            if template.get("id") == template_id:
+                # Initialize reviews list
+                reviews = template.get("reviews", [])
+                
+                # Check if user already reviewed - update if so
+                existing_idx = None
+                for j, r in enumerate(reviews):
+                    if r.get("username") == username:
+                        existing_idx = j
+                        break
+                
+                review_entry = {
+                    "username": username,
+                    "rating": rating,
+                    "review": review[:500] if review else "",
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat()
+                }
+                
+                if existing_idx is not None:
+                    review_entry["created_at"] = reviews[existing_idx].get("created_at", review_entry["created_at"])
+                    reviews[existing_idx] = review_entry
+                else:
+                    reviews.append(review_entry)
+                
+                data["templates"][i]["reviews"] = reviews
+                
+                # Recalculate average rating
+                total_rating = sum(r["rating"] for r in reviews)
+                data["templates"][i]["rating"] = round(total_rating / len(reviews), 1)
+                data["templates"][i]["ratings_count"] = len(reviews)
+                
+                self._save_json(self.templates_file, data)
+                
+                return {
+                    "success": True,
+                    "message": "Review submitted" if existing_idx is None else "Review updated",
+                    "new_rating": data["templates"][i]["rating"],
+                    "ratings_count": len(reviews)
+                }
+        
+        return {"success": False, "error": "Template not found"}
+    
+    def get_template_reviews(self, template_id: str) -> Dict:
+        """Get all reviews for a template"""
+        data = self._load_json(self.templates_file)
+        
+        for template in data.get("templates", []):
+            if template.get("id") == template_id:
+                reviews = template.get("reviews", [])
+                return {
+                    "template_id": template_id,
+                    "rating": template.get("rating", 0),
+                    "ratings_count": template.get("ratings_count", 0),
+                    "reviews": sorted(reviews, key=lambda x: x.get("created_at", ""), reverse=True)
+                }
+        
+        return {"template_id": template_id, "reviews": [], "rating": 0, "ratings_count": 0}
+    
     def get_reports(self, status: str = None, limit: int = 50) -> List[Dict]:
         """Get template reports (admin only)"""
         data = self._load_json(self.reports_file)

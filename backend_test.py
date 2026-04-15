@@ -1,12 +1,15 @@
 #!/usr/bin/env python3
 """
-ServerCraft Backend API Testing
-Tests the beta features implementation for version 2026.3.0-BETA
+ServerCraft Iteration 3 Backend API Testing
+Tests: Sub-user login, Template ratings/reviews, WebSocket mod download endpoint
 """
 
 import requests
-import sys
 import json
+import sys
+import websocket
+import threading
+import time
 from datetime import datetime
 
 class ServerCraftAPITester:

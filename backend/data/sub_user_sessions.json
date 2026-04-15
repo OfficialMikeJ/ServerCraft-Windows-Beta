@@ -1,3 +1,46 @@
 {
-  "sessions": {}
+  "sessions": {
+    "3vAx7NJqXAgaS9VS2vugH4hevf4HvU2I5aPEVV_SlK0": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T18:29:53.573239+00:00",
+      "expires_at": "2026-04-15T19:29:53.573197+00:00"
+    },
+    "IweOSCffWZDsimOM7oWat60zRR396zKYoL-BsXtAok8": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T18:33:56.558080+00:00",
+      "expires_at": "2026-04-15T19:33:56.558038+00:00"
+    },
+    "cG8lxjI5vlHdYRkGhyl0_BhI0LnHbr7B6N_78rckTsQ": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T18:35:07.520028+00:00",
+      "expires_at": "2026-04-15T19:35:07.634932+00:00"
+    },
+    "nqeRuWAMo-tME7aIeUkNTSe7LJP_leXuUwzkPN1bcHw": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T18:36:21.970712+00:00",
+      "expires_at": "2026-04-15T19:36:22.105619+00:00"
+    },
+    "1bq9yl9FeDHKoJqYpqBGBvvrLYDEbZeGJpnQLYmNAx0": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T18:37:13.381779+00:00",
+      "expires_at": "2026-04-15T19:37:13.381725+00:00"
+    },
+    "WpzURnM7pogGIz9a0CT3wGGOGekUtShBcbbombTMhLg": {
+      "user_id": "939b268c-9253-419e-acf9-45d3f615e854",
+      "username": "ModUser",
+      "role": "moderator",
+      "created_at": "2026-04-15T18:37:59.409054+00:00",
+      "expires_at": "2026-04-15T19:37:59.409007+00:00"
+    }
+  }
 }
