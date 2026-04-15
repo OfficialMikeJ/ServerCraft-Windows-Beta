@@ -10,6 +10,7 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import ClustersView from './ClustersView';
 import FeedbackView from './FeedbackView';
 import CustomDomainCard from './components/CustomDomainCard';
+import BackgroundSlideshow from './components/BackgroundSlideshow';
 import ServerSalesCard from './components/ServerSalesCard';
 
 // API Base URL from environment
@@ -1175,6 +1176,11 @@ function App() {
     // Initialize lastActivityRef on mount
     useEffect(() => {
         lastActivityRef.current = Date.now();
+        // Load background settings from localStorage
+        const savedInterval = localStorage.getItem('servercraft_bg_interval');
+        const savedCategory = localStorage.getItem('servercraft_bg_category');
+        if (savedInterval) setBgInterval(parseInt(savedInterval) || 15);
+        if (savedCategory) setBgCategory(savedCategory);
     }, []);
     
     // State
@@ -1200,6 +1206,10 @@ function App() {
     // Installed templates state
     const [installedTemplates, setInstalledTemplates] = useState([]);
     const [templateUpdatesCount, setTemplateUpdatesCount] = useState(0);
+    
+    // Background slideshow settings
+    const [bgInterval, setBgInterval] = useState(15);
+    const [bgCategory, setBgCategory] = useState('all');
     
     // Refs for WebSocket and intervals
     const statsWsRef = useRef(null);
@@ -1964,12 +1974,15 @@ function App() {
     // Show login screen if not authenticated
     if (showLoginScreen || !isAuthenticated) {
         return (
-            <LoginScreen
-                onLogin={handleLogin}
-                onSubUserLogin={handleSubUserLogin}
-                showPasswordReset={showPasswordReset}
-                setShowPasswordReset={setShowPasswordReset}
-            />
+            <>
+                <BackgroundSlideshow intervalSeconds={bgInterval} category={bgCategory} />
+                <LoginScreen
+                    onLogin={handleLogin}
+                    onSubUserLogin={handleSubUserLogin}
+                    showPasswordReset={showPasswordReset}
+                    setShowPasswordReset={setShowPasswordReset}
+                />
+            </>
         );
     }
     
@@ -2017,6 +2030,9 @@ function App() {
 
     return (
         <div className="app">
+            {/* Background Slideshow */}
+            <BackgroundSlideshow intervalSeconds={bgInterval} category={bgCategory} />
+            
             {/* Snowflakes - Only show in winter months (Dec-Feb) */}
             <Snowflakes />
             
@@ -2134,6 +2150,10 @@ function App() {
                         settings={settings}
                         upnpStatus={upnpStatus}
                         showToast={showToast}
+                        bgInterval={bgInterval}
+                        setBgInterval={setBgInterval}
+                        bgCategory={bgCategory}
+                        setBgCategory={setBgCategory}
                     />
                 )}
 
@@ -3474,7 +3494,7 @@ function WorkshopView({ games, showToast }) {
 }
 
 // Settings View Component
-function SettingsView({ settings, upnpStatus, showToast }) {
+function SettingsView({ settings, upnpStatus, showToast, bgInterval, setBgInterval, bgCategory, setBgCategory }) {
     const [upnpEnabled, setUpnpEnabled] = useState(settings.upnp_enabled || false);
     const [clusteringEnabled, setClusteringEnabled] = useState(settings.clustering_enabled || false);
     
@@ -3762,6 +3782,79 @@ function SettingsView({ settings, upnpStatus, showToast }) {
             </div>
 
             <div className="settings-content">
+                {/* Background Slideshow Settings */}
+                <div className="card" data-testid="bg-settings-card">
+                    <div className="card-header">
+                        <h3><i className="fas fa-images"></i> Background Slideshow</h3>
+                    </div>
+                    <div className="card-body">
+                        <p style={{ color: 'var(--text-secondary)', marginBottom: '16px', fontSize: '14px' }}>
+                            Gaming screenshots cycle as the panel background. Adjust the interval and category below.
+                        </p>
+                        
+                        <div style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                            {/* Interval Slider */}
+                            <div style={{ flex: 1, minWidth: '280px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                                    <i className="fas fa-clock" style={{ color: '#22c55e', marginRight: '6px' }}></i> 
+                                    Slide Interval
+                                </label>
+                                <div className="bg-slider-container">
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>10s</span>
+                                    <input 
+                                        type="range" 
+                                        className="bg-interval-slider"
+                                        min="10" 
+                                        max="60" 
+                                        step="1"
+                                        value={bgInterval} 
+                                        onChange={(e) => {
+                                            const val = parseInt(e.target.value);
+                                            setBgInterval(val);
+                                            localStorage.setItem('servercraft_bg_interval', val.toString());
+                                            // Update fill
+                                            e.target.style.setProperty('--slider-fill', `${((val - 10) / 50) * 100}%`);
+                                        }}
+                                        style={{ '--slider-fill': `${((bgInterval - 10) / 50) * 100}%` }}
+                                        data-testid="bg-interval-slider"
+                                    />
+                                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>60s</span>
+                                    <span className="bg-slider-value" data-testid="bg-interval-value">{bgInterval}s</span>
+                                </div>
+                            </div>
+                            
+                            {/* Category Select */}
+                            <div style={{ flex: 1, minWidth: '200px' }}>
+                                <label style={{ display: 'block', marginBottom: '8px', fontWeight: '500' }}>
+                                    <i className="fas fa-folder" style={{ color: '#22c55e', marginRight: '6px' }}></i>
+                                    Image Category
+                                </label>
+                                <select 
+                                    className="form-select" 
+                                    value={bgCategory}
+                                    onChange={(e) => {
+                                        setBgCategory(e.target.value);
+                                        localStorage.setItem('servercraft_bg_category', e.target.value);
+                                    }}
+                                    data-testid="bg-category-select"
+                                >
+                                    <option value="all">All Categories (Shuffled)</option>
+                                    <option value="random">Random</option>
+                                    <option value="arma3">Arma 3</option>
+                                    <option value="arma_reforger">Arma Reforger</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div style={{ marginTop: '12px', display: 'flex', gap: '12px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+                            <span><i className="fas fa-image"></i> Random: 10 images</span>
+                            <span><i className="fas fa-image"></i> Arma 3: 5 images</span>
+                            <span><i className="fas fa-image"></i> Arma Reforger: 2 images</span>
+                            <span><i className="fas fa-images"></i> Total: 17 images</span>
+                        </div>
+                    </div>
+                </div>
+
                 {/* Nginx Proxy Manager Integration */}
                 <div className="card" data-testid="npm-config-card">
                     <div className="card-header">

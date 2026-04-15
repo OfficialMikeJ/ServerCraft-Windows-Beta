@@ -74,6 +74,150 @@
     --transition-normal: 250ms ease;
 }
 
+/* ===== Background Slideshow ===== */
+.bg-slideshow {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+}
+
+.bg-slide {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    will-change: opacity;
+}
+
+.bg-slide-current {
+    z-index: 2;
+    opacity: 1;
+    transition: opacity 1.2s ease-in-out;
+}
+
+.bg-slide-current.bg-slide-out {
+    opacity: 0;
+}
+
+.bg-slide-next {
+    z-index: 1;
+    opacity: 1;
+}
+
+.bg-glass-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 3;
+    background: rgba(10, 10, 10, 0.72);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+
+/* Make main content sit above the background */
+.app-container {
+    position: relative;
+    z-index: 1;
+}
+
+/* ===== Background Interval Slider (Green) ===== */
+.bg-slider-container {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+
+.bg-slider-container label {
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.bg-slider-value {
+    min-width: 32px;
+    text-align: center;
+    font-weight: 700;
+    color: #22c55e;
+    font-size: 15px;
+}
+
+input[type="range"].bg-interval-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 220px;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.08);
+    outline: none;
+    cursor: pointer;
+}
+
+input[type="range"].bg-interval-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 3px solid #15803d;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+    transition: box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+input[type="range"].bg-interval-slider::-webkit-slider-thumb:hover {
+    box-shadow: 0 0 14px rgba(34, 197, 94, 0.6);
+    transform: scale(1.15);
+}
+
+input[type="range"].bg-interval-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #22c55e;
+    border: 3px solid #15803d;
+    cursor: pointer;
+    box-shadow: 0 0 8px rgba(34, 197, 94, 0.4);
+}
+
+input[type="range"].bg-interval-slider::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 3px;
+}
+
+input[type="range"].bg-interval-slider::-moz-range-track {
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.08);
+}
+
+/* Green fill for the slider track (using linear-gradient trick) */
+input[type="range"].bg-interval-slider {
+    background: linear-gradient(
+        to right,
+        #22c55e 0%,
+        #22c55e var(--slider-fill, 10%),
+        rgba(255,255,255,0.08) var(--slider-fill, 10%),
+        rgba(255,255,255,0.08) 100%
+    );
+}
+
+/* Login screen glass treatment */
+.login-screen {
+    position: relative;
+    z-index: 1;
+}
+
 /* ===== Reset & Base ===== */
 *, *::before, *::after {
     box-sizing: border-box;
@@ -86,7 +230,7 @@ html, body, #root {
     font-family: var(--font-sans);
     font-size: 14px;
     line-height: 1.5;
-    background: var(--bg-primary);
+    background: #050505;
     color: var(--text-primary);
     -webkit-font-smoothing: antialiased;
 }
@@ -99,6 +243,8 @@ body {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    position: relative;
+    z-index: 1;
 }
 
 /* ===== Header ===== */
@@ -107,8 +253,10 @@ body {
     align-items: center;
     justify-content: space-between;
     padding: var(--spacing-md) var(--spacing-lg);
-    background: var(--bg-secondary);
-    border-bottom: 1px solid var(--border-primary);
+    background: rgba(17, 17, 17, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(255,255,255,0.06);
     height: 60px;
     flex-shrink: 0;
 }
@@ -220,6 +368,8 @@ body {
     flex: 1;
     overflow-y: auto;
     padding: var(--spacing-lg);
+    position: relative;
+    z-index: 1;
 }
 
 .view {
@@ -681,8 +831,10 @@ body {
 
 /* ===== Cards ===== */
 .card {
-    background: var(--bg-card);
-    border: 1px solid var(--border-primary);
+    background: rgba(20, 20, 20, 0.75);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,255,255,0.06);
     border-radius: var(--radius-lg);
     margin-bottom: var(--spacing-md);
 }
@@ -1518,8 +1670,9 @@ body {
     display: flex;
     justify-content: center;
     padding: var(--spacing-md);
-    background: var(--bg-secondary);
-    border-top: 1px solid var(--border-primary);
+    background: rgba(17, 17, 17, 0.8);
+    backdrop-filter: blur(8px);
+    border-top: 1px solid rgba(255,255,255,0.06);
     color: var(--text-muted);
     font-size: 12px;
     flex-shrink: 0;
@@ -1987,7 +2140,7 @@ body {
     left: 0;
     right: 0;
     bottom: 0;
-    background: linear-gradient(135deg, #0f1419 0%, #1a2332 50%, #0f1419 100%);
+    background: transparent;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -1996,13 +2149,15 @@ body {
 }
 
 .login-container {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
+    background: rgba(20, 20, 20, 0.82);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
     border-radius: 12px;
     padding: 40px;
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255,255,255,0.04);
     position: relative;
     z-index: 10;
 }
