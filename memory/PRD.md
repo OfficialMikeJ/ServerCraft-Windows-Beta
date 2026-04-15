@@ -56,28 +56,22 @@ Windows-based game server panel (ServerCraft) running on Windows Server 2022/202
 - [x] **Version Compatibility Check** - Template downloads check version; "version mismatch" modal with current vs required + GitHub releases link
 - [x] **TeamSpeak 3 Support** - Added to GAME_DEFINITIONS with voice_port, query_port, filetransfer_port params; orange licensing notice with teamspeak.com link
 - [x] **Minimum Version Field** - Upload form includes optional min_servercraft_version for template compatibility
+- [x] **Template Auto-Updater** - Installed tab in Marketplace tracks downloaded templates; checks for newer versions; one-click Update button
+- [x] **ServerCraft Self-Update System** - Checks GitHub releases API; centered modal with green "Yes, Update Now" / red "No, Update Later"; dismissible with header badge
 
 ## Prioritized Backlog
 
 ### P0 (Critical)
-- [ ] Steam Web API integration for mod browsing/searching (requires API key)
-- [ ] Arma Reforger-specific start command parameters in server_manager.py
-- [ ] Sub-user login flow on the login screen (currently only admin can login)
+- [ ] Role-based view restrictions for sub-users (hide Settings/Users tabs for viewers)
+- [ ] Named update releases after reaching v1.0 (target: December 20th 2026)
+- [ ] Connect external auth API to servercraft.dev
 
 ### P1 (High)
-- [ ] Template ratings/reviews system
-- [ ] Mod cache restore flow in workshop download (connect cache manager to download pipeline)
-- [ ] NPM proxy host creation UI for ServerCraft panel
-- [ ] Sub-user session management (auto-expire, activity tracking)
+- [ ] Template search/filter by rating
+- [ ] Sub-user audit logging
+- [ ] Mod dependency resolver
 
 ### P2 (Medium)
 - [ ] Template categories/tags filtering
-- [ ] Mod dependency resolution
-- [ ] Bulk mod operations with progress tracking
-- [ ] Sub-user audit logging
-
-### Future
-- [ ] Template marketplace community features (comments, Q&A)
-- [ ] Game-specific configuration wizards
-- [ ] Mobile-responsive panel view for sub-users
+- [ ] Mobile-responsive panel view
 - [ ] Webhook notifications for server events
