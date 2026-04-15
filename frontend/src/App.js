@@ -1975,7 +1975,7 @@ function App() {
     if (showLoginScreen || !isAuthenticated) {
         return (
             <>
-                <BackgroundSlideshow intervalSeconds={bgInterval} category={bgCategory} />
+                <BackgroundSlideshow intervalSeconds={bgInterval} category={bgCategory} key="login-bg" />
                 <LoginScreen
                     onLogin={handleLogin}
                     onSubUserLogin={handleSubUserLogin}
@@ -1989,13 +1989,16 @@ function App() {
     // Show password change screen if required
     if (mustChangePassword) {
         return (
-            <PasswordChangeScreen
+            <>
+                <BackgroundSlideshow intervalSeconds={bgInterval} category={bgCategory} key="pwchange-bg" />
+                <PasswordChangeScreen
                 currentUsername={currentUsername}
                 isFirstTime={true}
                 onPasswordChange={handlePasswordChange}
                 onUsernameChange={handleUsernameChange}
                 onLogout={handleLogout}
             />
+            </>
         );
     }
     
@@ -2030,8 +2033,8 @@ function App() {
 
     return (
         <div className="app">
-            {/* Background Slideshow */}
-            <BackgroundSlideshow intervalSeconds={bgInterval} category={bgCategory} />
+            {/* Background Slideshow - same key as login so React preserves timer */}
+            <BackgroundSlideshow intervalSeconds={bgInterval} category={bgCategory} key="dashboard-bg" />
             
             {/* Snowflakes - Only show in winter months (Dec-Feb) */}
             <Snowflakes />

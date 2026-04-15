@@ -87,35 +87,47 @@ export default function BackgroundSlideshow({ intervalSeconds = 15, category = '
   }, [images]);
 
   // Single stable timer for advancing slides
+  // Uses setTimeout chain instead of setInterval for precise per-cycle control
   useEffect(() => {
     if (images.length <= 1) return;
     
-    // Clear any existing timer
-    if (timerRef.current) clearInterval(timerRef.current);
+    let timeoutId = null;
+    let active = true;
 
-    const tick = () => {
-      // Start crossfade
-      setTransitioning(true);
+    const scheduleNext = () => {
+      if (!active) return;
+      
+      // Wait the full display interval before starting any transition
+      timeoutId = setTimeout(() => {
+        if (!active) return;
+        
+        // Start crossfade
+        setTransitioning(true);
 
-      // After crossfade animation completes (1.2s), swap the layers
-      setTimeout(() => {
-        setCurrentIndex(prev => {
-          const next = (prev + 1) % images.length;
-          setNextIndex((next + 1) % images.length);
-          return next;
-        });
-        setTransitioning(false);
-      }, 1200);
+        // After crossfade completes, swap layers and schedule the next one
+        setTimeout(() => {
+          if (!active) return;
+          setCurrentIndex(prev => {
+            const next = (prev + 1) % images.length;
+            setNextIndex((next + 1) % images.length);
+            return next;
+          });
+          setTransitioning(false);
+          
+          // Schedule the next cycle
+          scheduleNext();
+        }, 1200);
+      }, intervalSeconds * 1000);
     };
 
-    // The interval is: display time + transition time
-    // So the image is VISIBLE for exactly intervalSeconds before any fade begins
-    timerRef.current = setInterval(tick, (intervalSeconds * 1000) + 1200);
+    // Start the first cycle
+    scheduleNext();
 
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      active = false;
+      if (timeoutId) clearTimeout(timeoutId);
     };
-  }, [intervalSeconds, images.length, images]);
+  }, [intervalSeconds, images]); // eslint-disable-line
 
   if (images.length === 0) return null;
 
