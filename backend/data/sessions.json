@@ -726,5 +726,12 @@
     "expires_at": "2026-04-15T23:32:03.243512+00:00",
     "remember_me": false,
     "last_activity": "2026-04-15T23:17:03.243512+00:00"
+  },
+  "wph7kuLT8EX-GkRCnwjhSWh8mKGg0G6uSL_6HHQGq9I": {
+    "username": "Admin",
+    "created_at": "2026-04-16T11:23:36.382904+00:00",
+    "expires_at": "2026-05-16T11:23:36.381225+00:00",
+    "remember_me": true,
+    "last_activity": "2026-04-16T11:26:24.851573+00:00"
   }
 }

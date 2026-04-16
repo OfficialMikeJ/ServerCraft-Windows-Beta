@@ -33,6 +33,23 @@
       "id": "5c9a83a1-c3b4-4e1d-a8ed-ef597c67d75b",
       "created_at": "2025-12-19T14:08:10.769936+00:00",
       "status": "stopped"
+    },
+    "854d5d07-881d-4ddc-be66-cffe4ad05c50": {
+      "name": "test",
+      "game": "fivem",
+      "port": 30120,
+      "query_port": 30120,
+      "rcon_port": null,
+      "max_players": 32,
+      "map_name": null,
+      "password": null,
+      "rcon_password": null,
+      "custom_params": "",
+      "auto_start": true,
+      "upnp_enabled": false,
+      "id": "854d5d07-881d-4ddc-be66-cffe4ad05c50",
+      "created_at": "2026-04-16T11:24:07.875958+00:00",
+      "status": "stopped"
     }
   },
   "states": {
@@ -40,6 +57,9 @@
       "status": "stopped"
     },
     "5c9a83a1-c3b4-4e1d-a8ed-ef597c67d75b": {
+      "status": "stopped"
+    },
+    "854d5d07-881d-4ddc-be66-cffe4ad05c50": {
       "status": "stopped"
     }
   }

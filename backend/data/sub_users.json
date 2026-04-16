@@ -1,16 +1,6 @@
 {
   "users": [
     {
-      "id": "0143a15c-1ecd-4656-9e35-07c702dccc2d",
-      "username": "TestMod",
-      "password_hash": "c235495a1874ae49325bbdf66ca6200b99ebac4ee1915e07473fc1aea6dc08c2",
-      "role": "moderator",
-      "assigned_servers": [],
-      "created_at": "2026-04-15T17:19:09.840924+00:00",
-      "last_login": null,
-      "active": true
-    },
-    {
       "id": "939b268c-9253-419e-acf9-45d3f615e854",
       "username": "ModUser",
       "password_hash": "7233e009f6acaa63d3b18c94287b8d951f65d03da871e4ae6df1f57ed8cef092",

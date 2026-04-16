@@ -15,5 +15,6 @@
   ],
   "dismissed_updates": [
     "2026.4.0-TEST"
-  ]
+  ],
+  "clustering_enabled": true
 }
