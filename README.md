@@ -6,7 +6,7 @@
 
 # ServerCraft - Complete Feature Specification
 
-> **Purpose**: This document provides a complete specification of ServerCraft for rebuilding the application in C++.
+> **Purpose**: This document provides a complete specification of ServerCraft for rebuilding the application fully rebuilt from the ground up with custom source code in C++.
 
 ---
 
@@ -14,8 +14,8 @@
 
 **ServerCraft** is a Windows desktop application for managing game server instances. It provides a modern GUI for server administrators to install, configure, start/stop, and monitor multiple game servers from a single interface.
 
-**Target Platform**: Windows 10/11 (64-bit)
-**Current Stack**: Python + FastAPI (backend) + React (frontend) + Electron/PyInstaller (packaging)
+**Target Platform**: Windows 10/Server 2022+ (64-bit)
+**Custom C++ Source Code**
 **Target Stack**: C++ with native Windows GUI (Qt, wxWidgets, or Win32)
 
 ---
