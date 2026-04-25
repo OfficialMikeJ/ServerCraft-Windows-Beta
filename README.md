@@ -4,7 +4,7 @@
 
 # ServerCraft - Complete Feature Specification
 
-> **Purpose**: This document provides a complete specification of ServerCraft for rebuilding the application fully rebuilt from the ground up with custom source code in C++.
+> **Purpose**: This document provides the full ported list of features for ServerCraft being ported from the ground up with custom source code in C++.
 
 ---
 
