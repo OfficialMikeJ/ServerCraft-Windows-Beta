@@ -24,45 +24,45 @@
 ### 1. [] Authentication System
 
 #### 1.1 Login Screen
-- [:heavy_check_mark:] Username and password fields
-- [:heavy_check_mark:] "Remember me for 30 days" checkbox
-- [:heavy_check_mark:] "Forgot Password?" link
-- [:heavy_check_mark:] Security notice card (warning to change default password)
-- [:heavy_check_mark:] Default credentials display: `Admin / Password123!`
+- :heavy_check_mark: Username and password fields
+- :heavy_check_mark: "Remember me for 30 days" checkbox
+- :heavy_check_mark: "Forgot Password?" link
+- :heavy_check_mark: Security notice card (warning to change default password)
+- :heavy_check_mark: Default credentials display: `Admin / Password123!`
 
 #### 1.2 Two-Factor Authentication (2FA)
-- [:heavy_check_mark:] Optional 2FA setup via authenticator app (TOTP)
-- [:heavy_check_mark:] QR code generation for authenticator setup
-- [:heavy_check_mark:] 6-digit code verification on login
-- [:heavy_check_mark:] Backup codes for account recovery
+- :heavy_check_mark: Optional 2FA setup via authenticator app (TOTP)
+- :heavy_check_mark: QR code generation for authenticator setup
+- :heavy_check_mark: 6-digit code verification on login
+- :heavy_check_mark: Backup codes for account recovery
 
 #### 1.3 Password Requirements
-- [:heavy_check_mark:] Minimum 8 characters
-- [:heavy_check_mark:] Force password change on first login (for default accounts)
-- [:heavy_check_mark:] Security questions for account recovery
+- :heavy_check_mark: Minimum 8 characters
+- :heavy_check_mark: Force password change on first login (for default accounts)
+- :heavy_check_mark: Security questions for account recovery
 
 #### 1.4 Session Management
-- [:heavy_check_mark:] JWT-based authentication tokens
-- [:heavy_check_mark:] Token expiration (configurable, default 24 hours)
-- [:heavy_check_mark:] "Remember me" extends to 30 days
-- [:heavy_check_mark:] Logout functionality
+- :heavy_check_mark: JWT-based authentication tokens
+- :heavy_check_mark: Token expiration (configurable, default 24 hours)
+- :heavy_check_mark: "Remember me" extends to 30 days
+- :heavy_check_mark: Logout functionality
 
 ---
 
 ### 2. First-Time User Onboarding
 
 #### 2.1 Welcome Screen (Step 1)
-- [:heavy_check_mark:] Welcome message
-- [:heavy_check_mark:] Feature highlights:
-- [:heavy_check_mark:] Easy Server Management
-- [:heavy_check_mark:] Automatic Updates
-- [:heavy_check_mark:] Smart Port Management
-- [:heavy_check_mark:] "Get Started" and "Skip Setup" buttons
+- :heavy_check_mark: Welcome message
+- :heavy_check_mark: Feature highlights:
+- :heavy_check_mark: Easy Server Management
+- :heavy_check_mark: Automatic Updates
+- :heavy_check_mark: Smart Port Management
+- :heavy_check_mark: "Get Started" and "Skip Setup" buttons
 
 #### 2.2 Game Selection (Step 2)
-- [:heavy_check_mark:] Grid of 14 supported games with icons
-- [:heavy_check_mark:] Multi-select capability
-- [:heavy_check_mark:] Games list:
+- :heavy_check_mark: Grid of 14 supported games with icons
+- :heavy_check_mark: Multi-select capability
+- :heavy_check_mark: Games list:
   1. Arma 3
   2. Arma Reforger
   3. DayZ (Vanilla)
@@ -81,68 +81,68 @@
 - [:heavy_check_mark:] Game icons from SteamGridDB CDN
 
 #### 2.3 Network Configuration (Step 3)
-- [:heavy_check_mark:] UPnP Enable/Disable toggle
-- [:heavy_check_mark:] Manual Setup option
-- [:heavy_check_mark:] Explanation of port forwarding
-- [:heavy_check_mark:] Static IP instructions
+- :heavy_check_mark: UPnP Enable/Disable toggle
+- :heavy_check_mark: Manual Setup option
+- :heavy_check_mark: Explanation of port forwarding
+- :heavy_check_mark: Static IP instructions
 
 #### 2.4 Hardware Recommendations (Step 4)
-- [:heavy_check_mark:] System analysis (CPU cores, RAM, disk space)
-- [:heavy_check_mark:] Per-game resource requirements
-- [:heavy_check_mark:] Recommended max concurrent servers
-- [:heavy_check_mark:] Warnings for:
-- [:heavy_check_mark:] Low RAM
+- :heavy_check_mark: System analysis (CPU cores, RAM, disk space)
+- :heavy_check_mark: Per-game resource requirements
+- :heavy_check_mark: Recommended max concurrent servers
+- :heavy_check_mark: Warnings for:
+- :heavy_check_mark: Low RAM
   - Limited CPU cores
   - Insufficient disk space
-- [:heavy_check_mark:] Tips based on selected games
-- [:heavy_check_mark:] Game intensity badges (Light/Medium/Heavy/Very Heavy)
+- :heavy_check_mark: Tips based on selected games
+- :heavy_check_mark: Game intensity badges (Light/Medium/Heavy/Very Heavy)
 
 ---
 
 ### 3. Main Dashboard
 
 #### 3.1 Sidebar Navigation
-- [:heavy_check_mark:] Dashboard (home)
-- [:heavy_check_mark:] Servers
-- [:heavy_check_mark:] SteamCMD
-- [:heavy_check_mark:] Mods/Workshop
-- [:heavy_check_mark:] Templates/Marketplace
-- [:heavy_check_mark:] Custom Domains
-- [:heavy_check_mark:] Server Sales
-- [:heavy_check_mark:] Settings
-- [:heavy_check_mark:] Collapse/expand toggle
+- :heavy_check_mark: Dashboard (home)
+- :heavy_check_mark: Servers
+- :heavy_check_mark: SteamCMD
+- :heavy_check_mark: Mods/Workshop
+- :heavy_check_mark: Templates/Marketplace
+- :heavy_check_mark: Custom Domains
+- :heavy_check_mark: Server Sales
+- :heavy_check_mark: Settings
+- :heavy_check_mark: Collapse/expand toggle
 
 #### 3.2 Dashboard Overview
-- [:heavy_check_mark:] Total servers count
-- [:heavy_check_mark:] Active/Running servers
-- [:heavy_check_mark:] System resource meters:
-- [:heavy_check_mark:] CPU usage (%)
-- [:heavy_check_mark:] RAM usage (GB / total)
-- [:heavy_check_mark:] Disk usage (GB / total)
-- [:heavy_check_mark:] Quick action buttons
-- [:heavy_check_mark:] Recent activity feed
+- :heavy_check_mark: Total servers count
+- :heavy_check_mark: Active/Running servers
+- :heavy_check_mark: System resource meters:
+- :heavy_check_mark: CPU usage (%)
+- :heavy_check_mark: RAM usage (GB / total)
+- :heavy_check_mark: Disk usage (GB / total)
+- :heavy_check_mark: Quick action buttons
+- :heavy_check_mark: Recent activity feed
 
 ---
 
 ### 4. Server Management
 
 #### 4.1 Server List View
-- [:heavy_check_mark:] Card-based layout for each server
-- [:heavy_check_mark:] Status indicator (Running/Stopped/Error)
-- [:heavy_check_mark:] Server name and game type
-- [:heavy_check_mark:] Player count (current/max)
-- [:heavy_check_mark:] Quick actions (Start/Stop/Restart)
-- [:heavy_check_mark:] Port information
+- :heavy_check_mark: Card-based layout for each server
+- :heavy_check_mark: Status indicator (Running/Stopped/Error)
+- :heavy_check_mark: Server name and game type
+- :heavy_check_mark: Player count (current/max)
+- :heavy_check_mark: Quick actions (Start/Stop/Restart)
+- :heavy_check_mark: Port information
 
 #### 4.2 Create New Server
-- [:heavy_check_mark:] Server name input
-- [:heavy_check_mark:] Game selection dropdown
-- [:heavy_check_mark:] Port configuration (auto or manual)
-- [:heavy_check_mark:] Player slots
-- [:heavy_check_mark:] Server password (optional)
-- [:heavy_check_mark:] RCON password
-- [:heavy_check_mark:] Custom launch parameters
-- [:heavy_check_mark:] Auto-start on boot toggle
+- :heavy_check_mark: Server name input
+- :heavy_check_mark: Game selection dropdown
+- :heavy_check_mark: Port configuration (auto or manual)
+- :heavy_check_mark: Player slots
+- :heavy_check_mark: Server password (optional)
+- :heavy_check_mark: RCON password
+- :heavy_check_mark: Custom launch parameters
+- :heavy_check_mark: Auto-start on boot toggle
 
 #### 4.3 Server Details View
 -  Live console output (scrollable log)
