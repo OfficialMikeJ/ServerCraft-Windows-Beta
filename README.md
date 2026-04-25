@@ -77,8 +77,8 @@
   12. FiveM (GTA V RP)
   13. Source Engine Games
   14. Minecraft
-- [:heavy_check_mark:] Steam badge indicator for Steam-dependent games
-- [:heavy_check_mark:] Game icons from SteamGridDB CDN
+- :heavy_check_mark: Steam badge indicator for Steam-dependent games
+- :heavy_check_mark: Game icons from SteamGridDB CDN
 
 #### 2.3 Network Configuration (Step 3)
 - :heavy_check_mark: UPnP Enable/Disable toggle
